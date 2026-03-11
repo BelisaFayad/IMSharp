@@ -1,0 +1,66 @@
+<script setup lang="ts">
+import { onMounted } from 'vue'
+import { useAuthStore, useUiStore, useChatStore, useContactsStore, useGroupsStore } from '@/stores'
+import { Toast } from '@/components'
+
+const authStore = useAuthStore()
+const uiStore = useUiStore()
+const chatStore = useChatStore()
+const contactsStore = useContactsStore()
+const groupsStore = useGroupsStore()
+
+onMounted(async () => {
+  // 初始化 UI (暗色模式)
+  uiStore.initialize()
+
+  // 初始化认证 (如果有 token,自动登录)
+  await authStore.initialize()
+
+  // 如果已登录,设置 SignalR 事件监听
+  if (authStore.isAuthenticated) {
+    // 设置当前用户 ID
+    if (authStore.user?.id) {
+      chatStore.setCurrentUserId(authStore.user.id)
+    }
+
+    chatStore.setupSignalRListeners()
+    contactsStore.setupSignalRListeners()
+    groupsStore.setupSignalRListeners()
+
+    // 从 IndexedDB 加载已读位置
+    try {
+      await chatStore.loadLastReadPositions()
+    } catch (error) {
+      console.error('加载已读位置失败:', error)
+    }
+
+    // 从 IndexedDB 恢复消息
+    try {
+      await chatStore.syncMessagesFromDB()
+    } catch (error) {
+      console.error('IndexedDB 初始化失败:', error)
+    }
+
+    // 清理 30 天前的旧消息 (后台执行,不阻塞)
+    chatStore.cleanupOldMessages(30).catch(err => {
+      console.error('清理旧消息失败:', err)
+    })
+  }
+})
+</script>
+
+<template>
+  <div id="app" class="min-h-screen">
+    <RouterView />
+
+    <!-- Global Toast -->
+    <Toast
+      v-if="uiStore.toast.visible"
+      :message="uiStore.toast.message"
+      :type="uiStore.toast.type"
+      @close="uiStore.hideToast"
+    />
+  </div>
+</template>
+
+<style scoped></style>

@@ -32,6 +32,26 @@ export const useChatStore = defineStore('chat', () => {
   // 已读位置管理 - 保存每个会话最后一条已读消息的 ID
   const lastReadMessageIds = ref<Map<string, string>>(new Map())
 
+  // 从 IndexedDB 加载所有已读位置
+  async function loadLastReadPositions() {
+    try {
+      const positions = await messageStorage.getAllLastReadPositions()
+      lastReadMessageIds.value = positions
+    } catch (error) {
+      console.error('加载已读位置失败:', error)
+    }
+  }
+
+  // 保存已读位置到 IndexedDB
+  async function saveLastReadPosition(conversationId: string, messageId: string) {
+    try {
+      lastReadMessageIds.value.set(conversationId, messageId)
+      await messageStorage.saveLastReadPosition(conversationId, messageId)
+    } catch (error) {
+      console.error('保存已读位置失败:', error)
+    }
+  }
+
   // 游标状态管理
   const privateCursors = ref<Map<string, {
     nextCursor: string | null  // 用于加载更早的历史消息
@@ -198,7 +218,7 @@ export const useChatStore = defineStore('chat', () => {
         // 8. 保存最新消息的 ID 作为已读位置（消息列表倒序，第一个是最新的）
         const latestMessage = response.messages[0]
         if (latestMessage) {
-          lastReadMessageIds.value.set(friendId, latestMessage.id)
+          await saveLastReadPosition(friendId, latestMessage.id)
         }
       }
 
@@ -354,7 +374,7 @@ export const useChatStore = defineStore('chat', () => {
         // 8. 保存最新消息的 ID 作为已读位置（消息列表倒序，第一个是最新的）
         const latestMessage = response.messages[0]
         if (latestMessage) {
-          lastReadMessageIds.value.set(groupId, latestMessage.id)
+          await saveLastReadPosition(groupId, latestMessage.id)
         }
       }
 
@@ -500,7 +520,9 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // 更新已读位置（保存最新消息的 ID）
-    lastReadMessageIds.value.set(conversationId, message.id)
+    saveLastReadPosition(conversationId, message.id).catch(err => {
+      console.error('保存已读位置失败:', err)
+    })
 
     // 保存到 IndexedDB (异步,不阻塞 UI)
     messageStorage.savePrivateMessage(message).catch(err => {
@@ -528,7 +550,9 @@ export const useChatStore = defineStore('chat', () => {
     }
 
     // 更新已读位置（保存最新消息的 ID）
-    lastReadMessageIds.value.set(message.groupId, message.id)
+    saveLastReadPosition(message.groupId, message.id).catch(err => {
+      console.error('保存已读位置失败:', err)
+    })
 
     // 保存到 IndexedDB (异步,不阻塞 UI)
     messageStorage.saveGroupMessage(message).catch(err => {
@@ -772,6 +796,7 @@ export const useChatStore = defineStore('chat', () => {
     setupSignalRListeners,
     setCurrentUserId,
     setCurrentChatId,
+    loadLastReadPositions,
     clearConversationMessages,
     syncMessagesFromDB,
     clearLocalCache,
