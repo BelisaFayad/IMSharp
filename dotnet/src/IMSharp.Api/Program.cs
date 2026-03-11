@@ -1,5 +1,4 @@
 using System.Text;
-using IMSharp.Api.Filters;
 using IMSharp.Api.Hubs;
 using IMSharp.Api.Middleware;
 using IMSharp.Core.Authentication;
@@ -20,7 +19,7 @@ builder.Services.AddSignalR();
 
 // Configure DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 // Register Repositories
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));

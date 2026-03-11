@@ -16,7 +16,7 @@ public interface IGroupService
     Task<GroupMessageDto> SendMessageAsync(Guid userId, Guid groupId, SendGroupMessageRequest request, CancellationToken cancellationToken = default);
     Task LeaveGroupAsync(Guid userId, Guid groupId, CancellationToken cancellationToken = default);
     Task<SearchGroupResponse> SearchGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default);
-    Task JoinGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default);
+    Task<Guid> JoinGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default);
     Task SetGroupAnnouncementAsync(Guid userId, Guid groupId, string content, CancellationToken cancellationToken = default);
     Task ClearGroupAnnouncementAsync(Guid userId, Guid groupId, CancellationToken cancellationToken = default);
     Task<GroupJoinRequestDto> SendGroupJoinRequestAsync(Guid userId, SendGroupJoinRequestRequest request, CancellationToken cancellationToken = default);

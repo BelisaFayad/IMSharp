@@ -2,11 +2,16 @@ using IMSharp.Core.DTOs;
 using IMSharp.Core.Mappers;
 using IMSharp.Domain.Entities;
 using IMSharp.Domain.Exceptions;
+using IMSharp.Infrastructure.Data;
 using IMSharp.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
 
 namespace IMSharp.Core.Services;
 
-public class FriendService(IFriendRepository friendRepository, IUserRepository userRepository)
+public class FriendService(
+    IFriendRepository friendRepository,
+    IUserRepository userRepository,
+    ApplicationDbContext dbContext)
     : IFriendService
 {
     private readonly FriendMapper _friendMapper = new();
@@ -100,28 +105,49 @@ public class FriendService(IFriendRepository friendRepository, IUserRepository u
         if (friendRequest.Status != FriendRequestStatus.Pending)
             throw new BusinessException("This request has already been processed");
 
-        // 更新请求状态
-        friendRequest.Status = request.Accept ? FriendRequestStatus.Accepted : FriendRequestStatus.Rejected;
-        friendRequest.ProcessedAt = DateTimeOffset.UtcNow;
-        await friendRepository.UpdateRequestAsync(friendRequest, cancellationToken);
+        var useTransaction = dbContext.Database.IsRelational();
+        await using var transaction = useTransaction
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
 
-        // 如果接受,创建双向好友关系
-        if (request.Accept)
+        try
         {
-            var friendship1 = new Friendship
-            {
-                UserId = friendRequest.SenderId,
-                FriendId = friendRequest.ReceiverId
-            };
+            // 更新请求状态
+            friendRequest.Status = request.Accept ? FriendRequestStatus.Accepted : FriendRequestStatus.Rejected;
+            friendRequest.ProcessedAt = DateTimeOffset.UtcNow;
+            await friendRepository.UpdateRequestAsync(friendRequest, cancellationToken);
 
-            var friendship2 = new Friendship
+            // 如果接受,创建双向好友关系
+            if (request.Accept)
             {
-                UserId = friendRequest.ReceiverId,
-                FriendId = friendRequest.SenderId
-            };
+                var friendship1 = new Friendship
+                {
+                    UserId = friendRequest.SenderId,
+                    FriendId = friendRequest.ReceiverId
+                };
 
-            await friendRepository.AddFriendshipAsync(friendship1, cancellationToken);
-            await friendRepository.AddFriendshipAsync(friendship2, cancellationToken);
+                var friendship2 = new Friendship
+                {
+                    UserId = friendRequest.ReceiverId,
+                    FriendId = friendRequest.SenderId
+                };
+
+                await friendRepository.AddFriendshipAsync(friendship1, cancellationToken);
+                await friendRepository.AddFriendshipAsync(friendship2, cancellationToken);
+            }
+
+            if (useTransaction && transaction != null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+        }
+        catch
+        {
+            if (useTransaction && transaction != null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+            }
+            throw;
         }
 
         return _friendMapper.ToDto(friendRequest);

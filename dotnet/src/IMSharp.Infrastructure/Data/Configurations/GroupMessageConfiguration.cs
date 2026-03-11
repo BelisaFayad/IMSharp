@@ -29,8 +29,7 @@ public class GroupMessageConfiguration : IEntityTypeConfiguration<GroupMessage>
         builder.Property(gm => gm.CreatedAt)
             .IsRequired();
 
-        builder.Property(gm => gm.UpdatedAt)
-            .IsRequired();
+        builder.Property(gm => gm.UpdatedAt);
 
         // Relationships
         builder.HasOne(gm => gm.Group)

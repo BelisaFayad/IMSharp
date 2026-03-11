@@ -30,8 +30,7 @@ public class GroupConfiguration : IEntityTypeConfiguration<Group>
             .HasDefaultValue(500);
 
         builder.Property(g => g.GroupNumber)
-            .IsRequired()
-            .HasDefaultValueSql("nextval('group_number_seq')");
+            .IsRequired();
 
         builder.Property(g => g.Announcement)
             .HasMaxLength(1000);
@@ -47,8 +46,7 @@ public class GroupConfiguration : IEntityTypeConfiguration<Group>
         builder.Property(g => g.CreatedAt)
             .IsRequired();
 
-        builder.Property(g => g.UpdatedAt)
-            .IsRequired();
+        builder.Property(g => g.UpdatedAt);
 
         // Relationships
         builder.HasOne(g => g.Owner)

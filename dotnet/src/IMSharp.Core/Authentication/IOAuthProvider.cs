@@ -3,7 +3,7 @@ namespace IMSharp.Core.Authentication;
 public record OAuthUserInfo(
     string Id,
     string Username,
-    string Email,
+    string? Email,
     string? Name,
     string? Picture
 );

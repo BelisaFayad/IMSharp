@@ -56,6 +56,7 @@ public class GroupsController(IGroupService groupService, INotificationService n
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await groupService.AddMemberAsync(userId, id, request, cancellationToken);
+        await notificationService.SyncUserGroupConnectionsAsync(id, request.UserId);
         return NoContent();
     }
 
@@ -115,7 +116,8 @@ public class GroupsController(IGroupService groupService, INotificationService n
     public async Task<IActionResult> JoinGroup([FromBody] JoinGroupRequest request, CancellationToken cancellationToken)
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        await groupService.JoinGroupByNumberAsync(userId, request.GroupNumber, cancellationToken);
+        var groupId = await groupService.JoinGroupByNumberAsync(userId, request.GroupNumber, cancellationToken);
+        await notificationService.SyncUserGroupConnectionsAsync(groupId, userId);
         return NoContent();
     }
 

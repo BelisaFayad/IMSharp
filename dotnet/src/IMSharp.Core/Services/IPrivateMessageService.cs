@@ -9,5 +9,6 @@ public interface IPrivateMessageService
     Task<UnreadCountResponse> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
     Task MarkAsDeliveredAsync(Guid messageId, CancellationToken cancellationToken = default);
     Task MarkAsReadAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default);
+    Task<Guid> MarkAsReadAndGetSenderAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default);
     Task MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
 }

@@ -305,8 +305,7 @@ public class GroupService(
         await groupRepository.AddMessageAsync(message, cancellationToken);
 
         // 重新加载消息以获取完整信息
-        var messages = await groupRepository.GetMessagesAsync(groupId, 1, null, cancellationToken);
-        var sentMessage = messages.FirstOrDefault();
+        var sentMessage = await groupRepository.GetMessageByIdAsync(message.Id, cancellationToken);
         if (sentMessage == null)
         {
             throw new BusinessException("发送消息失败");
@@ -356,7 +355,7 @@ public class GroupService(
         return _groupMapper.ToSearchResponse(group, isMember);
     }
 
-    public async Task JoinGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default)
+    public async Task<Guid> JoinGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default)
     {
         // 验证群号格式
         if (groupNumber < 10000000 || groupNumber > 99999999)
@@ -399,6 +398,7 @@ public class GroupService(
         };
 
         await groupRepository.AddMemberAsync(newMember, cancellationToken);
+        return group.Id;
     }
 
     public async Task SetGroupAnnouncementAsync(Guid userId, Guid groupId, string content, CancellationToken cancellationToken = default)

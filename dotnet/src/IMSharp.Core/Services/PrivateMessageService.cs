@@ -101,6 +101,19 @@ public class PrivateMessageService(
         await messageRepository.MarkAsReadAsync(messageId, cancellationToken);
     }
 
+    public async Task<Guid> MarkAsReadAndGetSenderAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default)
+    {
+        var message = await messageRepository.GetByIdAsync(messageId, cancellationToken);
+        if (message == null)
+            throw new NotFoundException($"Message with ID {messageId} not found");
+
+        if (message.ReceiverId != userId)
+            throw new UnauthorizedException("Can only mark your own messages as read");
+
+        await messageRepository.MarkAsReadAsync(messageId, cancellationToken);
+        return message.SenderId;
+    }
+
     public async Task MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
     {
         // 验证是好友关系

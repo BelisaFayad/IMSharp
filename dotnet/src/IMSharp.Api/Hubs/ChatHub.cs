@@ -86,10 +86,14 @@ public class ChatHub(
     public async Task MarkAsRead(Guid messageId)
     {
         var userId = GetUserId();
-        await messageService.MarkAsReadAsync(userId, messageId);
+        var senderId = await messageService.MarkAsReadAndGetSenderAsync(userId, messageId);
 
         // 通知发送者消息已读
-        await Clients.Caller.SendAsync(SignalREvents.Message.Read, messageId);
+        var senderConnections = connectionManager.GetConnections(senderId);
+        foreach (var connectionId in senderConnections)
+        {
+            await Clients.Client(connectionId).SendAsync(SignalREvents.Message.Read, messageId);
+        }
     }
 
     public async Task MarkAllAsRead(Guid friendId)

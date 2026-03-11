@@ -29,7 +29,7 @@ public class GenericOAuthProvider(HttpClient httpClient, IConfiguration configur
 
             var id = GetProperty(root,  "sub") ?? throw new BusinessException("OAuth user ID not found");
             var username = GetProperty(root, "name") ?? throw new BusinessException("OAuth username not found");
-            var email = GetProperty(root, "email") ?? string.Empty;
+            var email = GetProperty(root, "email");
             var name = GetProperty(root, "nick");
             var picture = GetProperty(root, "avatar");
             return new OAuthUserInfo(id, username, email, name, picture);

@@ -126,6 +126,15 @@ public class GroupRepository(ApplicationDbContext context) : IGroupRepository
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<GroupMessage?> GetMessageByIdAsync(Guid messageId, CancellationToken cancellationToken = default)
+    {
+        return await context.GroupMessages
+            .Include(gm => gm.Sender)
+            .Include(gm => gm.ReplyTo)
+                .ThenInclude(rm => rm!.Sender)
+            .FirstOrDefaultAsync(gm => gm.Id == messageId, cancellationToken);
+    }
+
     public async Task<GroupJoinRequest?> GetJoinRequestAsync(Guid requestId, CancellationToken cancellationToken = default)
     {
         return await context.GroupJoinRequests

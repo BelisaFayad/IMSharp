@@ -91,4 +91,20 @@ public class NotificationService(
             logger.LogError(ex, "Failed to notify group member joined for group {GroupId}", groupId);
         }
     }
+
+    public async Task SyncUserGroupConnectionsAsync(Guid groupId, Guid userId)
+    {
+        try
+        {
+            var connections = connectionManager.GetConnections(userId);
+            foreach (var connectionId in connections)
+            {
+                await hubContext.Groups.AddToGroupAsync(connectionId, groupId.ToString());
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to sync user {UserId} connections to group {GroupId}", userId, groupId);
+        }
+    }
 }

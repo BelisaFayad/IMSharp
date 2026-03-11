@@ -33,8 +33,7 @@ public class GroupJoinRequestConfiguration : IEntityTypeConfiguration<GroupJoinR
         builder.Property(gjr => gjr.CreatedAt)
             .IsRequired();
 
-        builder.Property(gjr => gjr.UpdatedAt)
-            .IsRequired();
+        builder.Property(gjr => gjr.UpdatedAt);
 
         // Relationships
         builder.HasOne(gjr => gjr.Group)

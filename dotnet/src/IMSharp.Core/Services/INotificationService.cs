@@ -13,4 +13,5 @@ public interface INotificationService
     Task NotifyGroupJoinRequestReceivedAsync(Guid groupId, GroupJoinRequestDto request);
     Task NotifyGroupJoinRequestProcessedAsync(Guid applicantId, GroupJoinRequestDto request);
     Task NotifyGroupMemberJoinedAsync(Guid groupId, GroupMemberDto member);
+    Task SyncUserGroupConnectionsAsync(Guid groupId, Guid userId);
 }

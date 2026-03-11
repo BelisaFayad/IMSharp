@@ -19,6 +19,7 @@ public interface IGroupRepository
     Task UpdateMemberAsync(GroupMember member, CancellationToken cancellationToken = default);
     Task RemoveMemberAsync(GroupMember member, CancellationToken cancellationToken = default);
     Task AddMessageAsync(GroupMessage message, CancellationToken cancellationToken = default);
+    Task<GroupMessage?> GetMessageByIdAsync(Guid messageId, CancellationToken cancellationToken = default);
     Task<GroupJoinRequest?> GetJoinRequestAsync(Guid requestId, CancellationToken cancellationToken = default);
     Task<GroupJoinRequest?> GetPendingJoinRequestAsync(Guid groupId, Guid userId, CancellationToken cancellationToken = default);
     Task<IEnumerable<GroupJoinRequest>> GetPendingJoinRequestsAsync(Guid groupId, CancellationToken cancellationToken = default);
