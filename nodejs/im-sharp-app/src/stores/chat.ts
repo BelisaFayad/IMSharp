@@ -195,10 +195,10 @@ export const useChatStore = defineStore('chat', () => {
       if (response.messages.length > 0) {
         await messageStorage.savePrivateMessages(response.messages)
 
-        // 8. 保存最后一条消息的 ID 作为已读位置
-        const lastMessage = response.messages[response.messages.length - 1]
-        if (lastMessage) {
-          lastReadMessageIds.value.set(friendId, lastMessage.id)
+        // 8. 保存最新消息的 ID 作为已读位置（消息列表倒序，第一个是最新的）
+        const latestMessage = response.messages[0]
+        if (latestMessage) {
+          lastReadMessageIds.value.set(friendId, latestMessage.id)
         }
       }
 
@@ -351,10 +351,10 @@ export const useChatStore = defineStore('chat', () => {
       if (response.messages.length > 0) {
         await messageStorage.saveGroupMessages(response.messages)
 
-        // 8. 保存最后一条消息的 ID 作为已读位置
-        const lastMessage = response.messages[response.messages.length - 1]
-        if (lastMessage) {
-          lastReadMessageIds.value.set(groupId, lastMessage.id)
+        // 8. 保存最新消息的 ID 作为已读位置（消息列表倒序，第一个是最新的）
+        const latestMessage = response.messages[0]
+        if (latestMessage) {
+          lastReadMessageIds.value.set(groupId, latestMessage.id)
         }
       }
 
