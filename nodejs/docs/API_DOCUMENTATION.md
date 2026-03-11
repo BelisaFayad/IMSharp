@@ -446,6 +446,12 @@ await fetch(`http://localhost:5185/api/friends/requests/${requestId}`, {
 
 **响应**: `204 No Content`
 
+**功能说明**:
+- 双向删除好友关系（自动删除对方的好友关系）
+- 清空两人之间的所有私聊消息（物理删除）
+- 通过 SignalR 实时通知对方用户（`FriendDeleted` 事件）
+- 使用数据库事务确保操作原子性
+
 **示例**:
 ```javascript
 await fetch(`http://localhost:5185/api/friends/${friendId}`, {
@@ -453,6 +459,11 @@ await fetch(`http://localhost:5185/api/friends/${friendId}`, {
   headers: { 'Authorization': 'Bearer your_jwt_token' }
 });
 ```
+
+**注意事项**:
+- 删除操作不可逆，所有私聊消息将被永久删除
+- 对方用户会立即收到 `FriendDeleted` 事件通知
+- 如果对方用户离线，通知会在其下次上线时丢失（需客户端主动刷新好友列表）
 
 ---
 
@@ -1510,7 +1521,30 @@ connection.on('FriendAdded', (data) => {
 });
 ```
 
-#### 4.3.12 收到群组加入请求
+#### 4.3.12 好友关系已删除
+
+**事件名**: `FriendDeleted`
+
+**参数**:
+```typescript
+{
+  userId: string  // 删除好友的用户 ID
+}
+```
+
+**说明**: 当对方用户删除你为好友时，你会收到此事件通知
+
+**监听示例**:
+```javascript
+connection.on('FriendDeleted', (data) => {
+  console.log('好友关系已删除，对方用户:', data.userId);
+  // 从好友列表中移除该用户
+  // 清空与该用户的聊天记录（可选）
+  // 显示通知提示用户
+});
+```
+
+#### 4.3.13 收到群组加入请求
 
 **事件名**: `GroupJoinRequestReceived`
 
@@ -1538,7 +1572,7 @@ connection.on('GroupJoinRequestReceived', (request) => {
 });
 ```
 
-#### 4.3.13 群组加入请求已处理
+#### 4.3.14 群组加入请求已处理
 
 **事件名**: `GroupJoinRequestProcessed`
 
@@ -1552,7 +1586,7 @@ connection.on('GroupJoinRequestProcessed', (request) => {
 });
 ```
 
-#### 4.3.14 新成员加入群组
+#### 4.3.15 新成员加入群组
 
 **事件名**: `GroupMemberJoined`
 
