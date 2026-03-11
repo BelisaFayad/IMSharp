@@ -11,4 +11,5 @@ public interface IPrivateMessageService
     Task MarkAsReadAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default);
     Task<Guid> MarkAsReadAndGetSenderAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default);
     Task MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
+    Task DeleteConversationAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
 }

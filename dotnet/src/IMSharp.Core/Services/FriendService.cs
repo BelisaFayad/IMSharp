@@ -11,6 +11,7 @@ namespace IMSharp.Core.Services;
 public class FriendService(
     IFriendRepository friendRepository,
     IUserRepository userRepository,
+    IPrivateMessageRepository privateMessageRepository,
     ApplicationDbContext dbContext)
     : IFriendService
 {
@@ -162,13 +163,40 @@ public class FriendService(
             throw new NotFoundException("Friendship not found");
         }
 
-        // 删除双向好友关系
         var reverseFriendship = await friendRepository.GetFriendshipAsync(friendId, userId, cancellationToken);
 
-        await friendRepository.DeleteFriendshipAsync(friendship, cancellationToken);
-        if (reverseFriendship != null)
+        // 使用事务确保原子性
+        var useTransaction = dbContext.Database.IsRelational();
+        await using var transaction = useTransaction
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+
+        try
         {
-            await friendRepository.DeleteFriendshipAsync(reverseFriendship, cancellationToken);
+            // 删除双向好友关系
+            dbContext.Friendships.Remove(friendship);
+            if (reverseFriendship != null)
+            {
+                dbContext.Friendships.Remove(reverseFriendship);
+            }
+
+            // 删除所有私聊消息
+            await privateMessageRepository.DeleteConversationAsync(userId, friendId, cancellationToken);
+
+            // 提交事务
+            await dbContext.SaveChangesAsync(cancellationToken);
+            if (useTransaction && transaction != null)
+            {
+                await transaction.CommitAsync(cancellationToken);
+            }
+        }
+        catch
+        {
+            if (useTransaction && transaction != null)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+            }
+            throw;
         }
     }
 }

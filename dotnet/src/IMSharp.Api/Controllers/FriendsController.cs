@@ -76,6 +76,10 @@ public class FriendsController(IFriendService friendService, INotificationServic
     {
         var userId = Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
         await friendService.DeleteFriendAsync(userId, friendId, cancellationToken);
+
+        // 通知对方用户
+        await notificationService.NotifyFriendDeletedAsync(friendId, userId);
+
         return NoContent();
     }
 }

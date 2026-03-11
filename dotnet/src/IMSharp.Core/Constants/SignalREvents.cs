@@ -24,6 +24,11 @@ public static class SignalREvents
         /// 好友关系已建立
         /// </summary>
         public const string Added = "FriendAdded";
+
+        /// <summary>
+        /// 好友关系已删除
+        /// </summary>
+        public const string Deleted = "FriendDeleted";
     }
 
     /// <summary>

@@ -155,4 +155,9 @@ public class PrivateMessageService(
 
         await messageRepository.MarkAllAsReadAsync(userId, friendId, cancellationToken);
     }
+
+    public async Task DeleteConversationAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
+    {
+        await messageRepository.DeleteConversationAsync(userId, friendId, cancellationToken);
+    }
 }

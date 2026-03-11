@@ -46,6 +46,11 @@ public class NotificationService(
         await NotifyUserAsync(userId2, SignalREvents.FriendRequest.Added, friend2);
     }
 
+    public async Task NotifyFriendDeletedAsync(Guid userId, Guid deletedByUserId)
+    {
+        await NotifyUserAsync(userId, SignalREvents.FriendRequest.Deleted, new { UserId = deletedByUserId });
+    }
+
     // 群组加入请求通知实现
     public async Task NotifyGroupJoinRequestReceivedAsync(Guid groupId, GroupJoinRequestDto request)
     {

@@ -8,6 +8,7 @@ public interface INotificationService
     Task NotifyFriendRequestReceivedAsync(Guid receiverId, FriendRequestDto request);
     Task NotifyFriendRequestProcessedAsync(Guid senderId, FriendRequestDto request);
     Task NotifyFriendAddedAsync(Guid userId1, Guid userId2, FriendDto friend1, FriendDto friend2);
+    Task NotifyFriendDeletedAsync(Guid userId, Guid deletedByUserId);
 
     // 群组加入请求通知
     Task NotifyGroupJoinRequestReceivedAsync(Guid groupId, GroupJoinRequestDto request);

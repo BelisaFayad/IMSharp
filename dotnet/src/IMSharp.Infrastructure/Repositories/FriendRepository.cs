@@ -35,7 +35,6 @@ public class FriendRepository(ApplicationDbContext context) : IFriendRepository
     public async Task DeleteFriendshipAsync(Friendship friendship, CancellationToken cancellationToken = default)
     {
         context.Friendships.Remove(friendship);
-        await context.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<IEnumerable<FriendRequest>> GetPendingRequestsAsync(Guid userId, CancellationToken cancellationToken = default)

@@ -114,4 +114,12 @@ public class PrivateMessageRepository(ApplicationDbContext context) : IPrivateMe
 
         await context.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task DeleteConversationAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
+    {
+        await context.PrivateMessages
+            .Where(m => (m.SenderId == userId && m.ReceiverId == friendId) ||
+                        (m.SenderId == friendId && m.ReceiverId == userId))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
 }
