@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using IMSharp.Api.Hubs;
 using IMSharp.Api.Middleware;
 using IMSharp.Core.Authentication;
@@ -15,7 +16,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Add services
 builder.Services.AddControllers();
-builder.Services.AddSignalR();
+builder.Services.AddSignalR()
+    .AddJsonProtocol(options =>
+    {
+        options.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        options.PayloadSerializerOptions.PropertyNameCaseInsensitive = true;
+    });
 
 // Configure DbContext
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
