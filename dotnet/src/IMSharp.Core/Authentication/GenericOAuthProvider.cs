@@ -27,8 +27,8 @@ public class GenericOAuthProvider(HttpClient httpClient, IConfiguration configur
             var jsonDoc = JsonDocument.Parse(content);
             var root = jsonDoc.RootElement;
 
-            var id = GetProperty(root,  "sub") ?? throw new BusinessException("OAuth user ID not found");
-            var username = GetProperty(root, "name") ?? throw new BusinessException("OAuth username not found");
+            var id = GetProperty(root,  "sub") ?? throw new BusinessException("未找到 OAuth 用户 ID");
+            var username = GetProperty(root, "name") ?? throw new BusinessException("未找到 OAuth 用户名");
             var email = GetProperty(root, "email");
             var name = GetProperty(root, "nick");
             var picture = GetProperty(root, "avatar");
@@ -36,7 +36,7 @@ public class GenericOAuthProvider(HttpClient httpClient, IConfiguration configur
         }
         catch (HttpRequestException ex)
         {
-            throw new BusinessException("Failed to validate OAuth token", ex);
+            throw new BusinessException("验证 OAuth token 失败", ex);
         }
     }
 

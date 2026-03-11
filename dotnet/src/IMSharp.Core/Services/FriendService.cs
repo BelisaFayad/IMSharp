@@ -36,27 +36,27 @@ public class FriendService(
         // 不能添加自己为好友
         if (senderId == request.ReceiverId)
         {
-            throw new BusinessException("Cannot send friend request to yourself");
+            throw new BusinessException("不能添加自己为好友");
         }
 
         // 检查是否已经是好友
         if (await friendRepository.AreFriendsAsync(senderId, request.ReceiverId, cancellationToken))
         {
-            throw new BusinessException("Already friends with this user");
+            throw new BusinessException("已经是好友关系");
         }
 
         // 检查是否已有待处理的请求
         var existingRequest = await friendRepository.GetPendingRequestAsync(senderId, request.ReceiverId, cancellationToken);
         if (existingRequest != null)
         {
-            throw new BusinessException("Friend request already sent");
+            throw new BusinessException("好友请求已发送");
         }
 
         // 检查对方是否已向你发送请求
         var reverseRequest = await friendRepository.GetPendingRequestAsync(request.ReceiverId, senderId, cancellationToken);
         if (reverseRequest != null)
         {
-            throw new BusinessException("This user has already sent you a friend request. Please accept it instead.");
+            throw new BusinessException("对方已向你发送好友请求，请直接接受");
         }
 
         // 创建好友请求
@@ -104,7 +104,7 @@ public class FriendService(
 
         // 验证请求状态
         if (friendRequest.Status != FriendRequestStatus.Pending)
-            throw new BusinessException("This request has already been processed");
+            throw new BusinessException("该请求已被处理");
 
         var useTransaction = dbContext.Database.IsRelational();
         await using var transaction = useTransaction

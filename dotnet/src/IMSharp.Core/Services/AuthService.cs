@@ -27,12 +27,12 @@ public class AuthService(
         if (user is null)
         {
             if (await userRepository.GetByUsernameAsync(oauthUserInfo.Username, cancellationToken) != null)
-                throw new BusinessException($"Username '{oauthUserInfo.Username}' is already taken");
+                throw new BusinessException($"用户名 '{oauthUserInfo.Username}' 已被占用");
 
             if (!string.IsNullOrEmpty(oauthUserInfo.Email) &&
                 await userRepository.GetByEmailAsync(oauthUserInfo.Email, cancellationToken) != null)
             {
-                throw new BusinessException($"Email '{oauthUserInfo.Email}' is already registered");
+                throw new BusinessException($"邮箱 '{oauthUserInfo.Email}' 已被注册");
             }
 
             user = new User

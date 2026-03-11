@@ -24,7 +24,7 @@ public class PrivateMessageService(
 
         // 验证是好友关系
         if (!await friendRepository.AreFriendsAsync(senderId, request.ReceiverId, cancellationToken))
-            throw new BusinessException("Can only send messages to friends");
+            throw new BusinessException("只能向好友发送消息");
 
         // 创建消息
         var message = new PrivateMessage
@@ -48,7 +48,7 @@ public class PrivateMessageService(
     {
         // 验证是好友关系
         if (!await friendRepository.AreFriendsAsync(userId, friendId, cancellationToken))
-            throw new BusinessException("Can only view conversations with friends");
+            throw new BusinessException("只能查看与好友的会话");
 
         // 获取消息（多取一条用于判断 hasMore）
         var messages = await messageRepository.GetConversationWithCursorAsync(
@@ -151,7 +151,7 @@ public class PrivateMessageService(
     {
         // 验证是好友关系
         if (!await friendRepository.AreFriendsAsync(userId, friendId, cancellationToken))
-            throw new BusinessException("Can only mark messages from friends as read");
+            throw new BusinessException("只能标记好友消息为已读");
 
         await messageRepository.MarkAllAsReadAsync(userId, friendId, cancellationToken);
     }
