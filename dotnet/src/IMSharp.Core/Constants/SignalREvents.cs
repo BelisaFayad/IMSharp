@@ -50,6 +50,11 @@ public static class SignalREvents
         /// 新成员加入群组
         /// </summary>
         public const string MemberJoined = "GroupMemberJoined";
+
+        /// <summary>
+        /// 成员离开群组
+        /// </summary>
+        public const string MemberLeft = "MemberLeftGroup";
     }
 
     /// <summary>
@@ -81,6 +86,17 @@ public static class SignalREvents
         /// 所有消息已读
         /// </summary>
         public const string AllRead = "AllMessagesRead";
+    }
+
+    /// <summary>
+    /// 群组相关事件
+    /// </summary>
+    public static class Group
+    {
+        /// <summary>
+        /// 群组信息已更新（名称、公告等）
+        /// </summary>
+        public const string Updated = "GroupUpdated";
     }
 
     /// <summary>

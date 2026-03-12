@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, useContactsStore } from '@/stores'
-import { BottomNav, LoadingSpinner, Avatar } from '@/components'
+import { BottomNav, LoadingSpinner, Avatar, Badge, Header } from '@/components'
 import type { User } from '@/types'
 
 const router = useRouter()
@@ -13,6 +13,16 @@ const searchQuery = ref('')
 const searchResults = ref<User[]>([])
 const isSearching = ref(false)
 const hasSearched = ref(false)
+
+// 计算已发送的好友请求数量
+const sentRequestsCount = computed(() =>
+  contactsStore.sentRequests.filter(r => r.status === 'Pending').length
+)
+
+onMounted(async () => {
+  // 加载已发送的好友请求
+  await contactsStore.loadSentRequests()
+})
 
 async function handleSearch() {
   if (!searchQuery.value.trim()) {
@@ -42,6 +52,11 @@ function handleAddClick(event: Event, userId: string) {
   router.push(`/contacts/add/${userId}`)
 }
 
+function handleRequestsClick() {
+  // 跳转到查看已发送的好友请求页面
+  router.push('/contacts/sent-requests')
+}
+
 function isFriend(userId: string): boolean {
   return contactsStore.friends.some(f => f.id === userId)
 }
@@ -52,22 +67,8 @@ function hasSentRequest(userId: string): boolean {
 </script>
 
 <template>
-  <div class="relative flex h-screen max-w-md mx-auto flex-col bg-white dark:bg-slate-900 overflow-hidden shadow-2xl">
-    <header class="flex items-center justify-between px-4 pt-6 pb-2 bg-white dark:bg-slate-800">
-      <button
-        @click="router.back()"
-        class="size-10 flex items-center justify-center text-slate-900 dark:text-slate-100"
-      >
-        <span class="material-symbols-outlined text-2xl">chevron_left</span>
-      </button>
-      <h1 class="text-2xl font-bold tracking-tight flex-1 text-center">添加好友</h1>
-      <button
-        @click="router.push('/groups')"
-        class="size-10 flex items-center justify-center"
-      >
-        <span class="material-symbols-outlined text-2xl text-primary">group_add</span>
-      </button>
-    </header>
+  <div class="relative flex h-screen flex-col bg-white dark:bg-slate-900 overflow-hidden">
+    <Header title="添加好友" :show-back="true" @back="router.back()" right-icon="primary:group_add" @right="router.push('/groups')" />
 
     <div class="px-4 py-3 bg-white dark:bg-slate-900">
       <div class="flex w-full items-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 px-4 py-2.5">
@@ -75,7 +76,7 @@ function hasSentRequest(userId: string): boolean {
         <input
           v-model="searchQuery"
           @keyup.enter="handleSearch"
-          class="flex w-full border-none bg-transparent focus:outline-0 focus:ring-0 text-sm placeholder:text-slate-500 dark:placeholder:text-slate-400"
+          class="flex w-full border-none bg-transparent focus:outline-0 focus:ring-0 text-base placeholder:text-slate-500 dark:placeholder:text-slate-400 text-slate-900 dark:text-white"
           placeholder="搜索账号"
           type="text"
         />
@@ -85,7 +86,23 @@ function hasSentRequest(userId: string): boolean {
       </p>
     </div>
 
-    <div class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/50 p-4 space-y-3">
+    <div class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-4 space-y-3">
+      <!-- 我的申请入口 -->
+      <div
+        v-if="sentRequestsCount > 0"
+        @click="handleRequestsClick"
+        class="flex items-center gap-3 px-4 py-3 bg-white dark:bg-slate-800 rounded-xl shadow-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+      >
+        <div class="size-12 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-slate-600 dark:text-slate-300 text-2xl">pending_actions</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="font-semibold text-slate-900 dark:text-white">我的申请</p>
+          <p class="text-xs text-slate-500 dark:text-slate-400">{{ sentRequestsCount }} 条待处理</p>
+        </div>
+        <span class="material-symbols-outlined text-slate-400 text-sm">chevron_right</span>
+      </div>
+
       <!-- 搜索提示 -->
       <template v-if="!hasSearched">
         <div class="text-center py-12">

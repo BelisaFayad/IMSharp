@@ -22,6 +22,7 @@ public class GroupRepository(ApplicationDbContext context) : IGroupRepository
             .Where(gm => gm.UserId == userId)
             .Include(gm => gm.Group)
                 .ThenInclude(g => g.Owner)
+            .Include(gm => gm.Group.Members)
             .Select(gm => gm.Group)
             .OrderByDescending(g => g.UpdatedAt)
             .ToListAsync(cancellationToken);
@@ -165,6 +166,7 @@ public class GroupRepository(ApplicationDbContext context) : IGroupRepository
         return await context.GroupJoinRequests
             .Include(gjr => gjr.Group)
                 .ThenInclude(g => g.Owner)
+            .Include(gjr => gjr.Group.Members)
             .Include(gjr => gjr.User)
             .Include(gjr => gjr.Processor)
             .FirstOrDefaultAsync(gjr => gjr.Id == requestId, cancellationToken);
@@ -181,6 +183,7 @@ public class GroupRepository(ApplicationDbContext context) : IGroupRepository
         return await context.GroupJoinRequests
             .Include(gjr => gjr.Group)
                 .ThenInclude(g => g.Owner)
+            .Include(gjr => gjr.Group.Members)
             .Include(gjr => gjr.User)
             .Where(gjr => gjr.GroupId == groupId && gjr.Status == GroupJoinRequestStatus.Pending)
             .OrderBy(gjr => gjr.CreatedAt)
@@ -192,6 +195,7 @@ public class GroupRepository(ApplicationDbContext context) : IGroupRepository
         return await context.GroupJoinRequests
             .Include(gjr => gjr.Group)
                 .ThenInclude(g => g.Owner)
+            .Include(gjr => gjr.Group.Members)
             .Include(gjr => gjr.User)
             .Include(gjr => gjr.Processor)
             .Where(gjr => gjr.UserId == userId)
@@ -209,5 +213,12 @@ public class GroupRepository(ApplicationDbContext context) : IGroupRepository
     {
         context.GroupJoinRequests.Update(request);
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<int> CountGroupsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken = default)
+    {
+        return await context.Groups
+            .Where(g => g.OwnerId == ownerId)
+            .CountAsync(cancellationToken);
     }
 }

@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
+import { SignalRConnectionState } from '@/types'
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info'
 
@@ -12,6 +13,7 @@ export interface ToastState {
 export const useUiStore = defineStore('ui', () => {
   // State - 默认为亮色模式
   const isDark = ref(false)
+  const signalRState = ref<SignalRConnectionState>(SignalRConnectionState.Disconnected)
   const isLoading = ref(false)
   const loadingMessage = ref('')
 
@@ -94,13 +96,19 @@ export const useUiStore = defineStore('ui', () => {
     updateDarkModeClass()
   }
 
+  function setSignalRState(state: SignalRConnectionState) {
+    signalRState.value = state
+  }
+
   return {
     isDark,
+    signalRState,
     isLoading,
     loadingMessage,
     toast,
     toggleDarkMode,
     setDarkMode,
+    setSignalRState,
     showLoading,
     hideLoading,
     showToast,

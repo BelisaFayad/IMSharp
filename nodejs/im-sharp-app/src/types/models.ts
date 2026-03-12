@@ -58,6 +58,7 @@ export interface Group {
   name: string
   avatar: string | null
   description: string | null
+  announcement: { content: string; updatedAt: string; updatedBy: User } | null
   ownerId: string
   maxMembers: number
   memberCount: number

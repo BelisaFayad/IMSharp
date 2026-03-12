@@ -9,14 +9,14 @@ public interface IGroupService
     Task<GroupDetailResponse> GetGroupDetailAsync(Guid userId, Guid groupId, CancellationToken cancellationToken = default);
     Task<GroupDto> UpdateGroupAsync(Guid userId, Guid groupId, UpdateGroupRequest request, CancellationToken cancellationToken = default);
     Task DeleteGroupAsync(Guid userId, Guid groupId, CancellationToken cancellationToken = default);
-    Task AddMemberAsync(Guid userId, Guid groupId, AddGroupMemberRequest request, CancellationToken cancellationToken = default);
+    Task<GroupMemberDto> AddMemberAsync(Guid userId, Guid groupId, AddGroupMemberRequest request, CancellationToken cancellationToken = default);
     Task RemoveMemberAsync(Guid userId, Guid groupId, Guid memberId, CancellationToken cancellationToken = default);
     Task UpdateMemberRoleAsync(Guid userId, Guid groupId, Guid memberId, UpdateMemberRoleRequest request, CancellationToken cancellationToken = default);
     Task<GroupMessagePageResponse> GetMessagesWithCursorAsync(Guid userId, Guid groupId, CursorPaginationRequest request, CancellationToken cancellationToken = default);
     Task<GroupMessageDto> SendMessageAsync(Guid userId, Guid groupId, SendGroupMessageRequest request, CancellationToken cancellationToken = default);
     Task LeaveGroupAsync(Guid userId, Guid groupId, CancellationToken cancellationToken = default);
     Task<SearchGroupResponse> SearchGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default);
-    Task<Guid> JoinGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default);
+    Task<(Guid GroupId, GroupMemberDto Member)> JoinGroupByNumberAsync(Guid userId, int groupNumber, CancellationToken cancellationToken = default);
     Task SetGroupAnnouncementAsync(Guid userId, Guid groupId, string content, CancellationToken cancellationToken = default);
     Task ClearGroupAnnouncementAsync(Guid userId, Guid groupId, CancellationToken cancellationToken = default);
     Task<GroupJoinRequestDto> SendGroupJoinRequestAsync(Guid userId, SendGroupJoinRequestRequest request, CancellationToken cancellationToken = default);

@@ -33,7 +33,7 @@ const emit = defineEmits<{
       :disabled="disabled"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       :class="[
-        'w-full bg-white dark:bg-slate-800 border-none rounded-xl py-3 px-4 text-sm focus:ring-2 focus:ring-primary/50 shadow-sm transition-all text-slate-900 dark:text-white placeholder:text-slate-400',
+        'w-full bg-white dark:bg-slate-800 border-none rounded-xl py-3 px-4 text-base focus:ring-2 focus:ring-primary/50 shadow-sm transition-all text-slate-900 dark:text-white placeholder:text-slate-400',
         error ? 'ring-2 ring-danger' : '',
         disabled ? 'opacity-50 cursor-not-allowed' : '',
       ]"

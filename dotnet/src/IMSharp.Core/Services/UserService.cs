@@ -37,6 +37,13 @@ public class UserService(IUserRepository userRepository, IStorageProvider storag
         }
 
         user.DisplayName = request.DisplayName;
+
+        // 如果提供了新头像 URL，更新头像
+        if (request.Avatar != null)
+        {
+            user.Avatar = request.Avatar;
+        }
+
         await userRepository.UpdateAsync(user, cancellationToken);
 
         return _userMapper.ToDto(user);

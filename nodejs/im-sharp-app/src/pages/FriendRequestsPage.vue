@@ -2,7 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useContactsStore } from '@/stores'
-import { Avatar, Button, LoadingSpinner } from '@/components'
+import { Avatar, Button, LoadingSpinner, Header } from '@/components'
 
 const router = useRouter()
 const contactsStore = useContactsStore()
@@ -50,15 +50,7 @@ async function handleReject(requestId: string) {
 
 <template>
   <div class="min-h-screen bg-slate-50 dark:bg-slate-900">
-    <header class="sticky top-0 z-10 flex items-center bg-white dark:bg-slate-800 p-4 border-b border-slate-200 dark:border-slate-800">
-      <button
-        @click="router.back()"
-        class="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-      >
-        <span class="material-symbols-outlined">arrow_back</span>
-      </button>
-      <h1 class="text-lg font-bold flex-1 text-center pr-10 text-slate-900 dark:text-white">好友请求</h1>
-    </header>
+    <Header title="好友请求" :show-back="true" @back="router.back()" />
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex justify-center py-12">

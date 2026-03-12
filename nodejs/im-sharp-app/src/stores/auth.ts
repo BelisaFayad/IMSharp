@@ -40,6 +40,11 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('refreshToken', response.refreshToken)
       localStorage.setItem('user', JSON.stringify(response.user))
 
+      // 设置 chatStore 的 currentUserId
+      const { useChatStore } = await import('@/stores')
+      const chatStore = useChatStore()
+      chatStore.setCurrentUserId(response.user.id)
+
       // 连接 SignalR
       await signalRService.connect(response.accessToken)
 
@@ -67,14 +72,12 @@ export const useAuthStore = defineStore('auth', () => {
       localStorage.setItem('token', response.accessToken)
       localStorage.setItem('refreshToken', response.refreshToken)
 
-      // 重新连接 SignalR
-      await signalRService.disconnect()
-      await signalRService.connect(response.accessToken)
+      // 更新 SignalR 连接的 token（不断开重连）
+      signalRService.updateAccessToken(response.accessToken)
 
       return response
     } catch (error) {
       console.error('Token refresh failed:', error)
-      // 刷新失败,清除认证信息
       logout()
       throw error
     }
@@ -118,9 +121,9 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function updateProfile(displayName: string) {
+  async function updateProfile(displayName: string, avatar?: string) {
     try {
-      const updatedUser = await authApi.me()
+      const updatedUser = await authApi.updateProfile(displayName, avatar)
       user.value = updatedUser
       // 保存到 localStorage
       localStorage.setItem('user', JSON.stringify(updatedUser))
@@ -136,6 +139,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (token.value) {
       try {
         await fetchCurrentUser()
+
+        // 设置 chatStore 的 currentUserId
+        if (user.value) {
+          const { useChatStore } = await import('@/stores')
+          const chatStore = useChatStore()
+          chatStore.setCurrentUserId(user.value.id)
+        }
+
         await signalRService.connect(token.value)
       } catch (error) {
         console.error('Initialize failed:', error)

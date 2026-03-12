@@ -2,6 +2,8 @@
 import { onMounted } from 'vue'
 import { useAuthStore, useUiStore, useChatStore, useContactsStore, useGroupsStore } from '@/stores'
 import { Toast } from '@/components'
+import { signalRService } from '@/services/signalr'
+import { SignalRConnectionState } from '@/types'
 
 const authStore = useAuthStore()
 const uiStore = useUiStore()
@@ -12,6 +14,11 @@ const groupsStore = useGroupsStore()
 onMounted(async () => {
   // 初始化 UI (暗色模式)
   uiStore.initialize()
+
+  // 注册 SignalR 状态变更回调
+  signalRService.onStateChange((state: SignalRConnectionState) => {
+    uiStore.setSignalRState(state)
+  })
 
   // 初始化认证 (如果有 token,自动登录)
   await authStore.initialize()

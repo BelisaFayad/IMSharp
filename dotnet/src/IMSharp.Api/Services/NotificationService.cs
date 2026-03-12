@@ -97,8 +97,41 @@ public class NotificationService(
         }
     }
 
-    public async Task SyncUserGroupConnectionsAsync(Guid groupId, Guid userId)
+    public async Task NotifyMemberLeftGroupAsync(Guid groupId, Guid userId)
     {
+        try
+        {
+            // 通知群组其他成员
+            await hubContext.Clients.Group(groupId.ToString())
+                .SendAsync(SignalREvents.GroupJoinRequest.MemberLeft, groupId.ToString(), userId.ToString());
+
+            // 将该用户的所有连接从 SignalR Group 移除
+            var connections = connectionManager.GetConnections(userId);
+            foreach (var connectionId in connections)
+            {
+                await hubContext.Groups.RemoveFromGroupAsync(connectionId, groupId.ToString());
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to notify member left for group {GroupId}", groupId);
+        }
+    }
+
+    public async Task NotifyGroupUpdatedAsync(Guid groupId)
+    {
+        try
+        {
+            await hubContext.Clients.Group(groupId.ToString())
+                .SendAsync(SignalREvents.Group.Updated, groupId.ToString());
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to notify group updated for group {GroupId}", groupId);
+        }
+    }
+
+    public async Task SyncUserGroupConnectionsAsync(Guid groupId, Guid userId)    {
         try
         {
             var connections = connectionManager.GetConnections(userId);

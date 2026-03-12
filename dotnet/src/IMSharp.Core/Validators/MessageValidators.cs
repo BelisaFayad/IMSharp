@@ -15,8 +15,10 @@ public class SendMessageValidator : AbstractValidator<SendPrivateMessageRequest>
         RuleFor(x => x.Content)
             .NotEmpty()
             .WithMessage("Message content is required")
-            .MaximumLength(5000)
-            .WithMessage("Message must not exceed 5000 characters");
+            .MaximumLength(1000)
+            .WithMessage("Message must not exceed 1000 characters")
+            .Must(c => !ContentSanitizer.ContainsScript(c))
+            .WithMessage("消息内容包含不允许的脚本内容");
 
         RuleFor(x => x.Type)
             .IsInEnum()
@@ -45,7 +47,8 @@ public class UnifiedSendMessageRequestValidator : AbstractValidator<UnifiedSendM
         // 通用字段验证
         RuleFor(x => x.Content)
             .NotEmpty().WithMessage("消息内容不能为空")
-            .MaximumLength(5000).WithMessage("消息内容不能超过 5000 字符");
+            .MaximumLength(1000).WithMessage("消息内容不能超过 1000 字符")
+            .Must(c => !ContentSanitizer.ContainsScript(c)).WithMessage("消息内容包含不允许的脚本内容");
 
         RuleFor(x => x.Type)
             .NotEmpty().WithMessage("消息类型不能为空")

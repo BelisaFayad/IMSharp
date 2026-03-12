@@ -61,15 +61,63 @@ const routes: RouteRecordRaw[] = [
     meta: { requiresAuth: true },
   },
   {
+    path: '/contacts/sent-requests',
+    name: 'sent-friend-requests',
+    component: () => import('@/pages/SentFriendRequestsPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/groups',
     name: 'groups',
     component: () => import('@/pages/GroupsPage.vue'),
     meta: { requiresAuth: true },
   },
   {
+    path: '/groups/create',
+    name: 'create-group',
+    component: () => import('@/pages/CreateGroupPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/groups/my-join-requests',
+    name: 'my-join-requests',
+    component: () => import('@/pages/GroupJoinRequestsPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
     path: '/groups/:id',
     name: 'group-detail',
     component: () => import('@/pages/GroupDetailPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/groups/:id/chat',
+    name: 'group-chat',
+    component: () => import('@/pages/GroupChatPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/groups/:id/join-requests',
+    name: 'group-join-requests',
+    component: () => import('@/pages/GroupJoinRequestsPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/groups/:id/settings',
+    name: 'group-settings',
+    component: () => import('@/pages/GroupSettingsPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/groups/:id/members',
+    name: 'group-members',
+    component: () => import('@/pages/GroupMembersPage.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/groups/:id/invite',
+    name: 'invite-members',
+    component: () => import('@/pages/InviteMembersPage.vue'),
     meta: { requiresAuth: true },
   },
   {
@@ -92,19 +140,18 @@ const router = createRouter({
 })
 
 // 路由守卫
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, from) => {
   const authStore = useAuthStore()
   const requiresAuth = to.meta.requiresAuth !== false
 
   if (requiresAuth && !authStore.isAuthenticated) {
     // 需要认证但未登录,重定向到登录页
-    next({ name: 'login', query: { redirect: to.fullPath } })
+    return { name: 'login', query: { redirect: to.fullPath } }
   } else if (to.name === 'login' && authStore.isAuthenticated) {
     // 已登录访问登录页,重定向到首页
-    next({ name: 'chats' })
-  } else {
-    next()
+    return { name: 'chats' }
   }
+  // 允许导航
 })
 
 export default router

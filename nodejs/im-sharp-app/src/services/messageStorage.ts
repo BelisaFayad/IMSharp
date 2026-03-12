@@ -68,16 +68,26 @@ export const messageStorage = {
    */
   async deletePrivateMessages(userId: string, currentUserId: string): Promise<void> {
     try {
+      console.log('[MessageStorage] 开始删除私聊消息:', { userId, currentUserId })
+
       // 删除双向消息 (我发给对方 + 对方发给我)
-      await db.privateMessages
+      const deleted1 = await db.privateMessages
         .where('[senderId+receiverId]')
         .equals([userId, currentUserId])
         .delete()
 
-      await db.privateMessages
+      const deleted2 = await db.privateMessages
         .where('[senderId+receiverId]')
         .equals([currentUserId, userId])
         .delete()
+
+      console.log('[MessageStorage] 删除私聊消息完成:', {
+        userId,
+        currentUserId,
+        deleted1,
+        deleted2,
+        total: deleted1 + deleted2
+      })
     } catch (error) {
       console.error('删除私聊消息失败:', error)
       throw error
@@ -250,6 +260,38 @@ export const messageStorage = {
   },
 
   /**
+   * 获取会话最新一条消息（私聊或群聊）
+   */
+  async getLastMessage(conversationId: string): Promise<{ id: string } | null> {
+    try {
+      // 先尝试群聊
+      const groupMsg = await db.groupMessages
+        .where('groupId')
+        .equals(conversationId)
+        .last()
+      if (groupMsg) return groupMsg
+
+      // 再尝试私聊（双向）
+      const sent = await db.privateMessages
+        .where('[senderId+receiverId]')
+        .between([conversationId, ''], [conversationId, '\uffff'])
+        .last()
+      const received = await db.privateMessages
+        .where('[senderId+receiverId]')
+        .between(['', conversationId], ['\uffff', conversationId])
+        .last()
+
+      if (sent && received) {
+        return sent.createdAt > received.createdAt ? sent : received
+      }
+      return sent || received || null
+    } catch (error) {
+      console.error('获取最新消息失败:', error)
+      return null
+    }
+  },
+
+  /**
    * 删除已读位置
    * @param conversationId 会话 ID
    */
@@ -260,5 +302,63 @@ export const messageStorage = {
       console.error('删除已读位置失败:', error)
       throw error
     }
-  }
+  },
+
+  /**
+   * 计算私聊未读消息数（lastReadMessageId 之后收到的消息）
+   */
+  async countPrivateUnreadMessages(
+    friendId: string,
+    currentUserId: string,
+    lastReadMessageId: string
+  ): Promise<number> {
+    try {
+      // 查对方发给我的消息（未读候选）
+      const received = await db.privateMessages
+        .where('[senderId+receiverId]')
+        .equals([friendId, currentUserId])
+        .sortBy('createdAt')
+
+      // 查所有双向消息，用于定位 lastReadMessageId 的时间戳
+      const allMessages = await db.privateMessages
+        .where('[senderId+receiverId]')
+        .anyOf([[friendId, currentUserId], [currentUserId, friendId]])
+        .sortBy('createdAt')
+
+      const lastRead = allMessages.find(m => m.id === lastReadMessageId)
+      if (!lastRead) return 0
+
+      // 统计已读位置之后收到的消息数
+      return received.filter(m => m.createdAt > lastRead.createdAt).length
+    } catch (error) {
+      console.error('计算私聊未读数失败:', error)
+      return 0
+    }
+  },
+
+  /**
+   * 计算群聊未读消息数（lastReadMessageId 之后的消息，排除自己发送的）
+   */
+  async countGroupUnreadMessages(
+    groupId: string,
+    currentUserId: string,
+    lastReadMessageId: string
+  ): Promise<number> {
+    try {
+      const messages = await db.groupMessages
+        .where('groupId')
+        .equals(groupId)
+        .sortBy('createdAt')
+
+      const lastRead = messages.find(m => m.id === lastReadMessageId)
+      if (!lastRead) return 0
+
+      return messages
+        .filter(m => m.createdAt > lastRead.createdAt && m.senderId !== currentUserId)
+        .length
+    } catch (error) {
+      console.error('计算群聊未读数失败:', error)
+      return 0
+    }
+  },
 }

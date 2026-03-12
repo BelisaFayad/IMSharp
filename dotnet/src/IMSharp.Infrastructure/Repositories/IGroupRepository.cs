@@ -26,4 +26,5 @@ public interface IGroupRepository
     Task<IEnumerable<GroupJoinRequest>> GetUserJoinRequestsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task AddJoinRequestAsync(GroupJoinRequest request, CancellationToken cancellationToken = default);
     Task UpdateJoinRequestAsync(GroupJoinRequest request, CancellationToken cancellationToken = default);
+    Task<int> CountGroupsByOwnerAsync(Guid ownerId, CancellationToken cancellationToken = default);
 }

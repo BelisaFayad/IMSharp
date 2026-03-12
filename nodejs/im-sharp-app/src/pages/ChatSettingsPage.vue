@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContactsStore, useChatStore, useUiStore } from '@/stores'
-import { Avatar, ConfirmationModal } from '@/components'
+import { Avatar, ConfirmationModal, Header } from '@/components'
 import { messageStorage } from '@/services/messageStorage'
 
 const route = useRoute()
@@ -84,7 +84,7 @@ async function handleClearChat() {
     chatStore.privateMessages.set(chatId, [])
 
     // 3. 清空未读数
-    chatStore.unreadCounts.set(chatId, 0)
+    chatStore.clearUnreadCount(chatId)
 
     showClearChatModal.value = false
     uiStore.showToast('聊天记录已清空', 'success')
@@ -102,18 +102,7 @@ async function handleClearChat() {
 
 <template>
   <div class="min-h-screen w-full bg-slate-50 dark:bg-slate-900 pb-10">
-    <!-- Header -->
-    <header class="flex items-center bg-white dark:bg-slate-800 p-4 pb-2 border-b border-slate-200 dark:border-slate-800">
-      <button
-        @click="router.back()"
-        class="text-slate-900 dark:text-slate-100 flex size-10 items-center justify-center hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
-      >
-        <span class="material-symbols-outlined">arrow_back</span>
-      </button>
-      <h2 class="text-slate-900 dark:text-slate-100 text-lg font-bold flex-1 text-center pr-10">
-        聊天详情
-      </h2>
-    </header>
+    <Header title="聊天详情" :show-back="true" @back="router.back()" />
 
     <!-- User Info Card -->
     <div

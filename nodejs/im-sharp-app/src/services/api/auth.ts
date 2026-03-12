@@ -35,4 +35,13 @@ export const authApi = {
     const response = await http.get<User>('/api/auth/me')
     return response.data
   },
+
+  // 更新用户资料
+  async updateProfile(displayName: string, avatar?: string): Promise<User> {
+    const response = await http.put<User>('/api/users/profile', {
+      displayName,
+      avatar: avatar || null,
+    })
+    return response.data
+  },
 }

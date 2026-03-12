@@ -11,14 +11,15 @@ public class LocalStorageProvider : IStorageProvider
     public LocalStorageProvider(IConfiguration configuration)
     {
         _rootPath = configuration["Storage:Local:RootPath"] ?? "wwwroot/uploads";
-        _baseUrl = "/uploads";
+        _baseUrl = $"{configuration["Storage:Local:BaseUrl"]}/uploads";
         _rootFullPath = Path.GetFullPath(_rootPath);
 
-        if (!Directory.Exists(_rootPath)) 
+        if (!Directory.Exists(_rootPath))
             Directory.CreateDirectory(_rootPath);
     }
 
-    public async Task<string> SaveAsync(Stream stream, string fileName, string contentType, CancellationToken cancellationToken = default)
+    public async Task<string> SaveAsync(Stream stream, string fileName, string contentType,
+        CancellationToken cancellationToken = default)
     {
         EnsureSafeFileName(fileName);
         var extension = Path.GetExtension(fileName);
@@ -69,8 +70,8 @@ public class LocalStorageProvider : IStorageProvider
         if (string.IsNullOrWhiteSpace(fileName))
             throw new ArgumentException("File name is required", nameof(fileName));
 
-        if (fileName != Path.GetFileName(fileName) || 
-            fileName.Contains(Path.DirectorySeparatorChar) || 
+        if (fileName != Path.GetFileName(fileName) ||
+            fileName.Contains(Path.DirectorySeparatorChar) ||
             fileName.Contains(Path.AltDirectorySeparatorChar))
             throw new ArgumentException("Invalid file name", nameof(fileName));
     }

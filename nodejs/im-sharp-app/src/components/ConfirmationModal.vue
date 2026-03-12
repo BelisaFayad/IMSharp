@@ -6,12 +6,14 @@ interface Props {
   confirmText?: string
   cancelText?: string
   variant?: 'primary' | 'danger'
+  isLoading?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   confirmText: '确定',
   cancelText: '取消',
   variant: 'primary',
+  isLoading: false,
 })
 
 const emit = defineEmits<{
@@ -39,13 +41,15 @@ const emit = defineEmits<{
           </button>
           <button
             @click="emit('confirm')"
+            :disabled="isLoading"
             :class="[
-              'flex-1 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-lg',
+              'flex-1 px-4 py-2.5 rounded-xl font-semibold text-sm transition-colors shadow-lg disabled:opacity-50 flex items-center justify-center gap-1',
               variant === 'danger'
                 ? 'bg-danger hover:bg-danger/90 text-white shadow-danger/20'
                 : 'bg-primary hover:bg-primary/90 text-white shadow-primary/20',
             ]"
           >
+            <span v-if="isLoading" class="material-symbols-outlined text-sm animate-spin">progress_activity</span>
             {{ confirmText }}
           </button>
         </div>

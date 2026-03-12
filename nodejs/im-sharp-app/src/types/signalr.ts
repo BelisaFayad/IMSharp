@@ -32,11 +32,20 @@ export interface SignalREvents {
   // 好友请求被接受
   FriendRequestAccepted: (userId: string) => void
 
+  // 好友请求被处理（接受或拒绝）
+  FriendRequestProcessed: (requestId: string, accepted: boolean) => void
+
+  // 好友被添加
+  FriendAdded: (userId: string) => void
+
+  // 好友关系被删除
+  FriendDeleted: (data: { userId: string }) => void
+
   // 群组邀请通知
   GroupInvitationReceived: (groupId: string) => void
 
   // 新成员加入群组
-  MemberJoinedGroup: (groupId: string, user: User) => void
+  GroupMemberJoined: (member: import('./models').GroupMember) => void
 
   // 成员离开群组
   MemberLeftGroup: (groupId: string, userId: string) => void
@@ -46,6 +55,9 @@ export interface SignalREvents {
 
   // 系统通知
   SystemNotification: (message: string) => void
+
+  // 重连成功
+  Reconnected: (connectionId: string | undefined) => void
 }
 
 // SignalR 方法接口

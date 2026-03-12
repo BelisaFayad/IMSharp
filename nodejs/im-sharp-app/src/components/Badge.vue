@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+
 interface Props {
   count?: number
   max?: number
@@ -19,7 +21,7 @@ const variantClasses = {
   success: 'bg-online',
 }
 
-const displayCount = props.count > props.max ? `${props.max}+` : props.count
+const displayCount = computed(() => props.count > props.max ? `${props.max}+` : props.count)
 </script>
 
 <template>

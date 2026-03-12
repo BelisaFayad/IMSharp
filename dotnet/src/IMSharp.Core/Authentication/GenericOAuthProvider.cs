@@ -32,6 +32,7 @@ public class GenericOAuthProvider(HttpClient httpClient, IConfiguration configur
             var email = GetProperty(root, "email");
             var name = GetProperty(root, "nick");
             var picture = GetProperty(root, "avatar");
+            if (string.IsNullOrWhiteSpace(email)) email = null;
             return new OAuthUserInfo(id, username, email, name, picture);
         }
         catch (HttpRequestException ex)

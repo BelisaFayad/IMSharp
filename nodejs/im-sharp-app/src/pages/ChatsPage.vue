@@ -36,12 +36,21 @@ function handleMenuSelect(id: string) {
   if (id === 'add-friend') {
     router.push('/contacts/add')
   } else if (id === 'create-group') {
-    router.push('/groups')
+    router.push('/groups/create')
   }
 }
 
 function handleChatClick(chatId: string) {
-  router.push(`/chats/${chatId}`)
+  // 查找会话类型
+  const conversation = chatStore.sortedConversations.find(c => c.id === chatId)
+
+  if (conversation?.type === 'group') {
+    // 群聊跳转到群聊页面
+    router.push(`/groups/${chatId}/chat`)
+  } else {
+    // 私聊跳转到私聊页面
+    router.push(`/chats/${chatId}`)
+  }
 }
 
 function formatTime(time: string | null) {
@@ -60,6 +69,17 @@ function formatTime(time: string | null) {
   } else {
     return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
   }
+}
+
+function formatLastMessage(message: string | null, messageType?: string) {
+  if (!message) return ''
+
+  // 根据消息类型判断
+  if (messageType === 'Image') {
+    return '[图片]'
+  }
+
+  return message
 }
 </script>
 
@@ -86,7 +106,7 @@ function formatTime(time: string | null) {
         :key="chat.id"
         :avatar="chat.avatar || undefined"
         :name="chat.name"
-        :last-message="chat.lastMessage || ''"
+        :last-message="formatLastMessage(chat.lastMessage, chat.lastMessageType)"
         :time="formatTime(chat.lastMessageTime)"
         :unread-count="chat.unreadCount"
         :online="chat.isOnline"

@@ -117,6 +117,7 @@ pnpm run test:unit        # 运行单元测试（Vitest）
 - **同步策略**: SignalR 接收消息时自动存储
 
 **关键文件**: `src/services/db.ts`
+**IndexDB名称**: IMSharpDB
 
 ### 4. 路由配置
 
@@ -270,4 +271,5 @@ proxy: {
 
 
 ## 重要说明
-页面样式必须严格遵循原型设计
+ - 页面样式必须严格遵循原型设计
+ - 如果缺少所需的 API 接口,应告知用户需求并要求实现

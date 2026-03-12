@@ -2,7 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContactsStore, useAuthStore } from '@/stores'
-import { Avatar, Button, ConfirmationModal, LoadingSpinner } from '@/components'
+import { Avatar, Button, ConfirmationModal, LoadingSpinner, Header } from '@/components'
 import type { User } from '@/types'
 
 const route = useRoute()
@@ -54,18 +54,13 @@ function handleSendMessage() {
 
 <template>
   <div class="min-h-screen w-full bg-slate-50 dark:bg-slate-900">
-    <nav class="flex items-center bg-white dark:bg-slate-800 p-4 sticky top-0 z-10 border-b border-slate-200 dark:border-slate-800">
-      <button
-        @click="router.back()"
-        class="flex size-10 items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-      >
-        <span class="material-symbols-outlined">arrow_back</span>
-      </button>
-      <h1 class="text-lg font-bold flex-1 text-center text-slate-900 dark:text-white">用户详情</h1>
-      <div class="size-10 flex items-center justify-center">
-        <span class="material-symbols-outlined text-slate-400">more_horiz</span>
-      </div>
-    </nav>
+    <Header title="用户详情" :show-back="true" @back="router.back()">
+      <template #right>
+        <div class="size-8 flex items-center justify-center">
+          <span class="material-symbols-outlined text-slate-400">more_horiz</span>
+        </div>
+      </template>
+    </Header>
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex justify-center py-12">

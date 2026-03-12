@@ -2,9 +2,11 @@ using FluentAssertions;
 using IMSharp.Core.DTOs;
 using IMSharp.Core.Services;
 using IMSharp.Domain.Entities;
+using IMSharp.Domain.Exceptions;
 using IMSharp.Infrastructure.Data;
 using IMSharp.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace IMSharp.Tests;
 
@@ -17,6 +19,21 @@ public class CoreServiceTests
             .Options;
 
         return new ApplicationDbContext(options);
+    }
+
+    private static IConfiguration CreateConfiguration(Dictionary<string, string>? settings = null)
+    {
+        var configSettings = settings ?? new Dictionary<string, string>
+        {
+            ["GroupLimits:MaxGroupsPerUser"] = "10",
+            ["GroupLimits:GroupNumberMin"] = "10000000",
+            ["GroupLimits:GroupNumberMax"] = "99999999",
+            ["GroupLimits:MaxRetryAttempts"] = "10"
+        };
+
+        return new ConfigurationBuilder()
+            .AddInMemoryCollection(configSettings)
+            .Build();
     }
 
     [Fact]
@@ -51,9 +68,10 @@ public class CoreServiceTests
         context.GroupMembers.Add(ownerMember);
         await context.SaveChangesAsync();
 
+        var configuration = CreateConfiguration();
         var groupRepository = new GroupRepository(context);
         var friendRepository = new FriendRepository(context);
-        var groupService = new GroupService(groupRepository, friendRepository);
+        var groupService = new GroupService(groupRepository, friendRepository, configuration);
 
         var message = await groupService.SendMessageAsync(
             owner.Id,
@@ -201,7 +219,8 @@ public class CoreServiceTests
 
         var friendRepository = new FriendRepository(context);
         var userRepository = new UserRepository(context);
-        var service = new FriendService(friendRepository, userRepository, context);
+        var messageRepository = new PrivateMessageRepository(context);
+        var service = new FriendService(friendRepository, userRepository,messageRepository, context);
 
         await service.ProcessFriendRequestAsync(receiver.Id, request.Id, new ProcessFriendRequestRequest(true));
 
@@ -210,5 +229,75 @@ public class CoreServiceTests
 
         var reverse = await friendRepository.GetFriendshipsAsync(receiver.Id);
         reverse.Should().ContainSingle(f => f.FriendId == sender.Id);
+    }
+
+    [Fact]
+    public async Task CreateGroup_AutoGeneratesGroupNumber()
+    {
+        await using var context = CreateContext(nameof(CreateGroup_AutoGeneratesGroupNumber));
+
+        var owner = new User
+        {
+            Username = "owner",
+            DisplayName = "Owner",
+            OAuthProvider = "Generic",
+            OAuthId = "owner-oauth"
+        };
+
+        context.Users.Add(owner);
+        await context.SaveChangesAsync();
+
+        var configuration = CreateConfiguration();
+        var groupRepository = new GroupRepository(context);
+        var friendRepository = new FriendRepository(context);
+        var groupService = new GroupService(groupRepository, friendRepository, configuration);
+
+        var request = new CreateGroupRequest("Test Group", null, null, null, true);
+        var result = await groupService.CreateGroupAsync(owner.Id, request);
+
+        result.GroupNumber.Should().BeInRange(10000000, 99999999);
+    }
+
+    [Fact]
+    public async Task CreateGroup_EnforcesMaxGroupsPerUser()
+    {
+        await using var context = CreateContext(nameof(CreateGroup_EnforcesMaxGroupsPerUser));
+
+        var owner = new User
+        {
+            Username = "owner",
+            DisplayName = "Owner",
+            OAuthProvider = "Generic",
+            OAuthId = "owner-oauth"
+        };
+
+        context.Users.Add(owner);
+        await context.SaveChangesAsync();
+
+        var configuration = CreateConfiguration(new Dictionary<string, string>
+        {
+            ["GroupLimits:MaxGroupsPerUser"] = "3",
+            ["GroupLimits:GroupNumberMin"] = "10000000",
+            ["GroupLimits:GroupNumberMax"] = "99999999",
+            ["GroupLimits:MaxRetryAttempts"] = "10"
+        });
+
+        var groupRepository = new GroupRepository(context);
+        var friendRepository = new FriendRepository(context);
+        var groupService = new GroupService(groupRepository, friendRepository, configuration);
+
+        // 创建 3 个群组
+        for (int i = 0; i < 3; i++)
+        {
+            var request = new CreateGroupRequest($"Group {i}", null, null, null, true);
+            await groupService.CreateGroupAsync(owner.Id, request);
+        }
+
+        // 尝试创建第 4 个
+        var failRequest = new CreateGroupRequest("Group 4", null, null, null, true);
+        var act = async () => await groupService.CreateGroupAsync(owner.Id, failRequest);
+
+        await act.Should().ThrowAsync<BusinessException>()
+            .WithMessage("您最多只能创建 3 个群组");
     }
 }

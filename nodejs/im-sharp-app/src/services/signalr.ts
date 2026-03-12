@@ -7,6 +7,17 @@ class SignalRService {
   private eventHandlers: Map<keyof SignalREvents, Function[]> = new Map()
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
+  private stateChangeCallback: ((state: SignalRConnectionState) => void) | null = null
+  private currentToken: string = ''
+
+  onStateChange(callback: (state: SignalRConnectionState) => void) {
+    this.stateChangeCallback = callback
+  }
+
+  private notifyStateChange(state: SignalRConnectionState) {
+    this.connectionState = state
+    this.stateChangeCallback?.(state)
+  }
 
   // 连接到 SignalR Hub
   async connect(token: string): Promise<void> {
@@ -15,11 +26,12 @@ class SignalRService {
       return
     }
 
-    this.connectionState = 'Connecting' as SignalRConnectionState
+    this.currentToken = token
+    this.notifyStateChange('Connecting' as SignalRConnectionState)
 
     this.connection = new signalR.HubConnectionBuilder()
       .withUrl(import.meta.env.VITE_SIGNALR_HUB_URL, {
-        accessTokenFactory: () => token,
+        accessTokenFactory: () => this.currentToken,
         transport: signalR.HttpTransportType.WebSockets | signalR.HttpTransportType.ServerSentEvents,
       })
       .withAutomaticReconnect({
@@ -39,46 +51,52 @@ class SignalRService {
 
     // 连接状态监听
     this.connection.onclose((error) => {
-      this.connectionState = 'Disconnected' as SignalRConnectionState
+      this.notifyStateChange('Disconnected' as SignalRConnectionState)
       console.error('SignalR connection closed:', error)
       this.reconnectAttempts = 0
     })
 
     this.connection.onreconnecting((error) => {
-      this.connectionState = 'Reconnecting' as SignalRConnectionState
+      this.notifyStateChange('Reconnecting' as SignalRConnectionState)
       this.reconnectAttempts++
       console.warn(`SignalR reconnecting (attempt ${this.reconnectAttempts}):`, error)
     })
 
     this.connection.onreconnected((connectionId) => {
-      this.connectionState = 'Connected' as SignalRConnectionState
+      this.notifyStateChange('Connected' as SignalRConnectionState)
       this.reconnectAttempts = 0
       console.log('SignalR reconnected:', connectionId)
+      this.emit('Reconnected', connectionId)
     })
 
     try {
       await this.connection.start()
-      this.connectionState = 'Connected' as SignalRConnectionState
+      this.notifyStateChange('Connected' as SignalRConnectionState)
       console.log('SignalR connected successfully')
     } catch (error) {
-      this.connectionState = 'Disconnected' as SignalRConnectionState
+      this.notifyStateChange('Disconnected' as SignalRConnectionState)
       console.error('SignalR connection failed:', error)
       throw error
     }
   }
 
   // 断开连接
+  // 更新 access token（token 刷新后调用，无需重连）
+  updateAccessToken(token: string): void {
+    this.currentToken = token
+  }
+
   async disconnect(): Promise<void> {
     if (!this.connection) {
       return
     }
 
-    this.connectionState = 'Disconnecting' as SignalRConnectionState
+    this.notifyStateChange('Disconnecting' as SignalRConnectionState)
 
     try {
       await this.connection.stop()
       this.connection = null
-      this.connectionState = 'Disconnected' as SignalRConnectionState
+      this.notifyStateChange('Disconnected' as SignalRConnectionState)
       this.eventHandlers.clear()
       console.log('SignalR disconnected')
     } catch (error) {
@@ -141,14 +159,30 @@ class SignalRService {
       this.emit('FriendRequestAccepted', userId)
     })
 
+    // 好友请求被处理
+    this.connection.on('FriendRequestProcessed', (requestId, accepted) => {
+      this.emit('FriendRequestProcessed', requestId, accepted)
+    })
+
+    // 好友被添加
+    this.connection.on('FriendAdded', (userId) => {
+      this.emit('FriendAdded', userId)
+    })
+
+    // 好友关系被删除
+    this.connection.on('FriendDeleted', (data) => {
+      console.log('[SignalR Service] 收到 FriendDeleted 事件:', data)
+      this.emit('FriendDeleted', data)
+    })
+
     // 群组邀请通知
     this.connection.on('GroupInvitationReceived', (groupId) => {
       this.emit('GroupInvitationReceived', groupId)
     })
 
     // 新成员加入群组
-    this.connection.on('MemberJoinedGroup', (groupId, user) => {
-      this.emit('MemberJoinedGroup', groupId, user)
+    this.connection.on('GroupMemberJoined', (member) => {
+      this.emit('GroupMemberJoined', member)
     })
 
     // 成员离开群组
@@ -249,13 +283,30 @@ class SignalRService {
     await this.connection.invoke('Typing', receiverId)
   }
 
+  // 等待连接就绪（最多等待 10 秒）
+  private waitForConnection(timeoutMs = 10000): Promise<void> {
+    if (this.connectionState === ('Connected' as SignalRConnectionState)) {
+      return Promise.resolve()
+    }
+    return new Promise((resolve, reject) => {
+      const deadline = Date.now() + timeoutMs
+      const check = () => {
+        if (this.connectionState === ('Connected' as SignalRConnectionState)) {
+          resolve()
+        } else if (Date.now() >= deadline) {
+          reject(new Error('SignalR connection timeout'))
+        } else {
+          setTimeout(check, 200)
+        }
+      }
+      check()
+    })
+  }
+
   // 加入群组房间
   async joinGroup(groupId: string): Promise<void> {
-    if (!this.connection || this.connectionState !== ('Connected' as SignalRConnectionState)) {
-      throw new Error('SignalR not connected')
-    }
-
-    await this.connection.invoke('JoinGroup', groupId)
+    await this.waitForConnection()
+    await this.connection!.invoke('JoinGroup', groupId)
   }
 
   // 离开群组房间

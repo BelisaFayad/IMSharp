@@ -68,7 +68,16 @@ export const useContactsStore = defineStore('contacts', () => {
   async function deleteFriend(friendId: string) {
     try {
       await friendsApi.deleteFriend(friendId)
+
+      // 从好友列表中移除
       friends.value = friends.value.filter((f) => f.id !== friendId)
+
+      // 清理本地消息数据（与被动删除时的逻辑一致）
+      const { useChatStore } = await import('./chat')
+      const chatStore = useChatStore()
+      await chatStore.handleFriendDeleted(friendId)
+
+      console.log(`已删除好友 ${friendId} 及其本地数据`)
     } catch (error) {
       console.error('Delete friend failed:', error)
       throw error
@@ -103,6 +112,14 @@ export const useContactsStore = defineStore('contacts', () => {
     }
   }
 
+  // 处理好友被删除事件
+  function handleFriendDeleted(userId: string) {
+    // 从好友列表中移除
+    friends.value = friends.value.filter((f) => f.id !== userId)
+    // 从在线用户集合中移除
+    onlineUsers.value.delete(userId)
+  }
+
   // 初始化 SignalR 事件监听
   function setupSignalRListeners() {
     // 用户上线
@@ -124,6 +141,21 @@ export const useContactsStore = defineStore('contacts', () => {
     signalRService.on('FriendRequestAccepted', () => {
       loadFriends()
     })
+
+    // 好友请求被处理
+    signalRService.on('FriendRequestProcessed', () => {
+      loadSentRequests()
+    })
+
+    // 好友被添加
+    signalRService.on('FriendAdded', () => {
+      loadFriends()
+    })
+
+    // 好友关系被删除
+    signalRService.on('FriendDeleted', (data: { userId: string }) => {
+      handleFriendDeleted(data.userId)
+    })
   }
 
   return {
@@ -140,6 +172,7 @@ export const useContactsStore = defineStore('contacts', () => {
     searchUsers,
     setUserOnline,
     setUserOffline,
+    handleFriendDeleted,
     setupSignalRListeners,
   }
 })

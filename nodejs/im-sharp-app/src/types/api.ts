@@ -1,4 +1,4 @@
-import type { User, PrivateMessage, GroupMessage, Group, FriendRequest, GroupJoinRequest, Notification } from './models'
+import type { User, PrivateMessage, GroupMessage, Group, GroupMember, FriendRequest, GroupJoinRequest, Notification } from './models'
 
 // 通用分页响应
 export interface PaginatedResponse<T> {
@@ -101,7 +101,13 @@ export interface GetGroupsResponse {
 }
 
 export interface GetGroupMembersResponse {
-  members: User[]
+  members: GroupMember[]
+}
+
+export interface GroupDetailResponse {
+  group: Omit<Group, 'announcement'>
+  members: GroupMember[]
+  announcement: { content: string; updatedAt: string; updatedBy: import('./models').User } | null
 }
 
 export interface SendGroupMessageRequest {
@@ -125,6 +131,30 @@ export interface UpdateGroupRequest {
   name?: string
   avatar?: string
   description?: string
+  announcement?: string
+  isPublic?: boolean
+}
+
+export interface SearchGroupResponse {
+  group: Group
+  isMember: boolean
+}
+
+export interface JoinGroupRequest {
+  groupNumber: number
+}
+
+export interface SendGroupJoinRequestRequest {
+  groupNumber: number
+  message?: string
+}
+
+export interface ProcessGroupJoinRequestRequest {
+  accept: boolean
+}
+
+export interface GetGroupJoinRequestsResponse {
+  requests: GroupJoinRequest[]
 }
 
 // 文件上传

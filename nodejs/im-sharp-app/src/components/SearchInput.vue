@@ -29,7 +29,7 @@ function handleSearch() {
       :disabled="disabled"
       @input="emit('update:modelValue', ($event.target as HTMLInputElement).value)"
       @keyup.enter="handleSearch"
-      class="flex w-full border-none bg-transparent focus:outline-0 focus:ring-0 text-sm placeholder:text-slate-500 dark:placeholder:text-slate-400 text-slate-900 dark:text-white"
+      class="flex w-full border-none bg-transparent focus:outline-0 focus:ring-0 text-base placeholder:text-slate-500 dark:placeholder:text-slate-400 text-slate-900 dark:text-white"
       type="text"
     />
     <button

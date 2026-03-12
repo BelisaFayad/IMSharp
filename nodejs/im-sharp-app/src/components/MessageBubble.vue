@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { ref } from 'vue'
+import ImageViewer from './ImageViewer.vue'
+
 interface Props {
   content: string
+  type?: 'Text' | 'Image' | 'File' | 'Audio' | 'Video'
   isSelf?: boolean
   time?: string
   status?: 'sending' | 'sent' | 'delivered' | 'read' | 'failed'
@@ -8,11 +12,16 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
+  type: 'Text',
   isSelf: false,
   time: '',
   status: 'sent',
   avatar: '',
 })
+
+const imageLoaded = ref(false)
+const imageError = ref(false)
+const showImageViewer = ref(false)
 
 const statusIcon = {
   sending: 'schedule',
@@ -28,6 +37,22 @@ const statusColor = {
   delivered: 'text-slate-400',
   read: 'text-primary',
   failed: 'text-danger',
+}
+
+function handleImageLoad() {
+  imageLoaded.value = true
+}
+
+function handleImageError() {
+  imageError.value = true
+}
+
+function handleImageClick() {
+  showImageViewer.value = true
+}
+
+function handleCloseViewer() {
+  showImageViewer.value = false
 }
 </script>
 
@@ -48,7 +73,9 @@ const statusColor = {
     </div>
 
     <div :class="['flex flex-col max-w-[70%]', isSelf ? 'items-end' : 'items-start']">
+      <!-- 文本消息 -->
       <div
+        v-if="type === 'Text'"
         :class="[
           'px-4 py-2.5 rounded-2xl break-words',
           isSelf
@@ -57,6 +84,61 @@ const statusColor = {
         ]"
       >
         <p class="text-sm leading-relaxed whitespace-pre-wrap">{{ content }}</p>
+      </div>
+
+      <!-- 图片消息 -->
+      <div
+        v-else-if="type === 'Image'"
+        :class="[
+          'rounded-2xl overflow-hidden',
+          isSelf ? 'rounded-tr-sm' : 'rounded-tl-sm',
+        ]"
+      >
+        <!-- 图片加载中 -->
+        <div
+          v-if="!imageLoaded && !imageError"
+          class="w-40 h-40 bg-slate-100 dark:bg-slate-800 flex items-center justify-center"
+        >
+          <span class="material-symbols-outlined text-4xl text-slate-400 animate-spin">progress_activity</span>
+        </div>
+
+        <!-- 图片加载失败 -->
+        <div
+          v-else-if="imageError"
+          :class="[
+            'w-40 h-40 flex flex-col items-center justify-center gap-2',
+            isSelf
+              ? 'bg-primary/10 text-primary'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-500',
+          ]"
+        >
+          <span class="material-symbols-outlined text-4xl">broken_image</span>
+          <p class="text-xs">图片加载失败</p>
+        </div>
+
+        <!-- 图片显示 -->
+        <img
+          v-show="imageLoaded && !imageError"
+          :src="content"
+          :alt="'图片消息'"
+          class="max-w-[200px] max-h-[200px] object-contain cursor-pointer hover:opacity-90 transition-opacity"
+          @load="handleImageLoad"
+          @error="handleImageError"
+          @click="handleImageClick"
+        />
+      </div>
+
+      <!-- 其他类型消息 (暂不支持) -->
+      <div
+        v-else
+        :class="[
+          'px-4 py-2.5 rounded-2xl',
+          isSelf
+            ? 'bg-primary/10 text-primary rounded-tr-sm'
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-tl-sm',
+        ]"
+      >
+        <p class="text-sm">不支持的消息类型: {{ type }}</p>
       </div>
 
       <div :class="['flex items-center gap-1 mt-1 px-1', isSelf ? 'flex-row-reverse' : 'flex-row']">
@@ -70,4 +152,11 @@ const statusColor = {
       </div>
     </div>
   </div>
+
+  <!-- 图片查看器 -->
+  <ImageViewer
+    :is-open="showImageViewer"
+    :image-url="content"
+    @close="handleCloseViewer"
+  />
 </template>

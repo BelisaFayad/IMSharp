@@ -8,6 +8,7 @@ export { default as ConfirmationModal } from './ConfirmationModal.vue'
 export { default as SuccessModal } from './SuccessModal.vue'
 export { default as DropdownMenu } from './DropdownMenu.vue'
 export { default as NoticeModal } from './NoticeModal.vue'
+export { default as ImageViewer } from './ImageViewer.vue'
 
 // 表单组件
 export { default as Button } from './Button.vue'
@@ -15,6 +16,7 @@ export { default as Input } from './Input.vue'
 export { default as Textarea } from './Textarea.vue'
 export { default as SearchInput } from './SearchInput.vue'
 export { default as Toggle } from './Toggle.vue'
+export { default as ChatInputBar } from './ChatInputBar.vue'
 
 // 数据展示组件
 export { default as Avatar } from './Avatar.vue'

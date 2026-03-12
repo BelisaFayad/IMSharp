@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore, useContactsStore } from '@/stores'
 import { usersApi } from '@/services'
-import { LoadingSpinner, Avatar } from '@/components'
+import { LoadingSpinner, Avatar, Header } from '@/components'
 import type { User } from '@/types'
 
 const router = useRouter()
@@ -45,30 +45,14 @@ async function handleSend() {
 </script>
 
 <template>
-  <div class="relative flex h-screen max-w-md mx-auto flex-col bg-white dark:bg-slate-900 overflow-hidden shadow-2xl">
-    <header class="flex items-center justify-between px-4 pt-6 pb-2 border-b border-slate-100 dark:border-slate-800">
-      <button
-        @click="router.back()"
-        :disabled="isLoading"
-        class="size-10 flex items-center justify-center text-slate-900 dark:text-slate-100 disabled:opacity-50"
-      >
-        <span class="material-symbols-outlined text-2xl">chevron_left</span>
-      </button>
-      <h1 class="text-xl font-bold tracking-tight flex-1 text-center">发送申请</h1>
-      <button
-        @click="handleSend"
-        :disabled="isLoading || isFetching"
-        class="size-10 flex items-center justify-center text-primary font-bold text-sm disabled:opacity-50"
-      >
-        发送
-      </button>
-    </header>
+  <div class="relative flex h-screen flex-col bg-white dark:bg-slate-900 overflow-hidden">
+    <Header title="发送申请" :show-back="true" @back="router.back()" right-text="发送" :right-disabled="isLoading || isFetching" @right="handleSend" />
 
     <div v-if="isFetching" class="flex-1 flex items-center justify-center">
       <LoadingSpinner />
     </div>
 
-    <div v-else-if="user" class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900/50 p-6 space-y-8">
+    <div v-else-if="user" class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-900 p-6 space-y-8">
       <!-- User Info Card -->
       <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm flex flex-col items-center gap-4">
         <Avatar
@@ -94,7 +78,7 @@ async function handleSend() {
             v-model="message"
             rows="4"
             placeholder="输入验证消息..."
-            class="w-full bg-white dark:bg-slate-800 border-none rounded-xl py-4 px-4 text-sm focus:ring-2 focus:ring-primary/50 shadow-sm transition-all resize-none"
+            class="w-full bg-white dark:bg-slate-800 border-none rounded-xl py-4 px-4 text-base focus:ring-2 focus:ring-primary/50 shadow-sm transition-all resize-none text-slate-900 dark:text-white placeholder:text-slate-400"
           ></textarea>
           <button
             @click="message = ''"

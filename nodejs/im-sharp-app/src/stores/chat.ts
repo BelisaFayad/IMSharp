@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, reactive } from 'vue'
 import { defineStore } from 'pinia'
 import { messagesApi, groupsApi } from '@/services'
 import { signalRService } from '@/services'
@@ -14,6 +14,7 @@ interface Conversation {
   avatar: string | null
   lastMessage: string | null
   lastMessageTime: string | null
+  lastMessageType?: string // 最后一条消息的类型 (Text, Image, etc.)
   unreadCount: number
   isOnline?: boolean
   user?: User
@@ -24,7 +25,7 @@ export const useChatStore = defineStore('chat', () => {
   const conversations = ref<Conversation[]>([])
   const privateMessages = ref<Map<string, PrivateMessage[]>>(new Map())
   const groupMessages = ref<Map<string, GroupMessage[]>>(new Map())
-  const unreadCounts = ref<Map<string, number>>(new Map())
+  const unreadCounts = reactive<Record<string, number>>({})
   const typingUsers = ref<Map<string, boolean>>(new Map())
   const currentUserId = ref<string | null>(null)
   const currentChatId = ref<string | null>(null) // 当前正在查看的聊天 ID
@@ -32,6 +33,61 @@ export const useChatStore = defineStore('chat', () => {
   // 已读位置管理 - 保存每个会话最后一条已读消息的 ID
   const lastReadMessageIds = ref<Map<string, string>>(new Map())
   const lastReadPositionsLoaded = ref(false)
+
+  // 被删除的好友 ID - 用于通知 UI 层显示确认框
+  const deletedFriendId = ref<string | null>(null)
+
+  // 从 localStorage 加载未读消息数
+  function loadUnreadCounts() {
+    try {
+      const stored = localStorage.getItem('unreadCounts')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        Object.assign(unreadCounts, parsed)
+      }
+    } catch (error) {
+      console.error('加载未读消息数失败:', error)
+    }
+  }
+
+  // 保存未读消息数到 localStorage
+  function saveUnreadCounts() {
+    try {
+      localStorage.setItem('unreadCounts', JSON.stringify(unreadCounts))
+    } catch (error) {
+      console.error('保存未读消息数失败:', error)
+    }
+  }
+
+  // 会话最后消息信息的持久化
+  const conversationLastMessages = ref<Map<string, {
+    lastMessage: string
+    lastMessageTime: string
+    lastMessageType?: string
+  }>>(new Map())
+
+  // 从 localStorage 加载会话最后消息信息
+  function loadConversationLastMessages() {
+    try {
+      const stored = localStorage.getItem('conversationLastMessages')
+      if (stored) {
+        const parsed = JSON.parse(stored)
+        conversationLastMessages.value = new Map(Object.entries(parsed))
+      }
+    } catch (error) {
+      console.error('加载会话最后消息信息失败:', error)
+    }
+  }
+
+  // 保存会话最后消息信息到 localStorage
+  function saveConversationLastMessages() {
+    try {
+      const obj = Object.fromEntries(conversationLastMessages.value)
+      localStorage.setItem('conversationLastMessages', JSON.stringify(obj))
+    } catch (error) {
+      console.error('保存会话最后消息信息失败:', error)
+    }
+  }
 
   // 从 IndexedDB 加载所有已读位置
   async function loadLastReadPositions() {
@@ -78,15 +134,23 @@ export const useChatStore = defineStore('chat', () => {
 
   // Getters
   const totalUnreadCount = computed(() => {
-    return Array.from(unreadCounts.value.values()).reduce((sum, count) => sum + count, 0)
+    return Object.values(unreadCounts).reduce((sum, count) => sum + count, 0)
   })
 
   const sortedConversations = computed(() => {
     return [...conversations.value].map(c => ({
       ...c,
       // 动态获取最新的未读数
-      unreadCount: unreadCounts.value.get(c.id) || 0
+      unreadCount: unreadCounts[c.id] || 0
     })).sort((a, b) => {
+      // 1. 优先按未读数排序（有未读的在前）
+      const hasUnreadA = a.unreadCount > 0 ? 1 : 0
+      const hasUnreadB = b.unreadCount > 0 ? 1 : 0
+      if (hasUnreadA !== hasUnreadB) {
+        return hasUnreadB - hasUnreadA
+      }
+
+      // 2. 其次按最后消息时间排序
       const timeA = a.lastMessageTime ? new Date(a.lastMessageTime).getTime() : 0
       const timeB = b.lastMessageTime ? new Date(b.lastMessageTime).getTime() : 0
       return timeB - timeA
@@ -96,6 +160,9 @@ export const useChatStore = defineStore('chat', () => {
   // Actions
   async function loadConversations() {
     try {
+      // 加载会话最后消息信息
+      loadConversationLastMessages()
+
       // 从好友列表和群组列表构建会话列表
       const { useContactsStore } = await import('./contacts')
       const { useGroupsStore } = await import('./groups')
@@ -113,29 +180,66 @@ export const useChatStore = defineStore('chat', () => {
         await groupsStore.loadGroups()
       }
 
+      // 加载已读位置
+      await ensureLastReadPositionsLoaded()
+
+      // 重新从 IndexedDB 计算未读数
+      if (currentUserId.value) {
+        const uid = currentUserId.value
+        const counts: Record<string, number> = {}
+
+        await Promise.all([
+          ...contactsStore.friends.map(async friend => {
+            const lastRead = lastReadMessageIds.value.get(friend.id)
+            if (lastRead) {
+              counts[friend.id] = await messageStorage.countPrivateUnreadMessages(friend.id, uid, lastRead)
+            }
+          }),
+          ...groupsStore.groups.map(async group => {
+            const lastRead = lastReadMessageIds.value.get(group.id)
+            if (lastRead) {
+              counts[group.id] = await messageStorage.countGroupUnreadMessages(group.id, uid, lastRead)
+            }
+          }),
+        ])
+
+        // 清空旧数据，写入新计算结果
+        Object.keys(unreadCounts).forEach(k => delete unreadCounts[k])
+        Object.assign(unreadCounts, counts)
+        saveUnreadCounts()
+      }
+
       // 从好友构建私聊会话
-      const friendConversations: Conversation[] = contactsStore.friends.map(friend => ({
-        id: friend.id,
-        type: 'private' as const,
-        name: friend.displayName || friend.username,
-        avatar: friend.avatar,
-        lastMessage: null,
-        lastMessageTime: null,
-        unreadCount: unreadCounts.value.get(friend.id) || 0,
-        isOnline: friend.isOnline,
-        user: friend,
-      }))
+      const friendConversations: Conversation[] = contactsStore.friends.map(friend => {
+        const lastMsgInfo = conversationLastMessages.value.get(friend.id)
+        return {
+          id: friend.id,
+          type: 'private' as const,
+          name: friend.displayName || friend.username,
+          avatar: friend.avatar,
+          lastMessage: lastMsgInfo?.lastMessage || null,
+          lastMessageTime: lastMsgInfo?.lastMessageTime || null,
+          lastMessageType: lastMsgInfo?.lastMessageType,
+          unreadCount: unreadCounts[friend.id] || 0,
+          isOnline: friend.isOnline,
+          user: friend,
+        }
+      })
 
       // 从群组构建群聊会话
-      const groupConversations: Conversation[] = groupsStore.groups.map(group => ({
-        id: group.id,
-        type: 'group' as const,
-        name: group.name,
-        avatar: group.avatar,
-        lastMessage: null,
-        lastMessageTime: null,
-        unreadCount: unreadCounts.value.get(group.id) || 0,
-      }))
+      const groupConversations: Conversation[] = groupsStore.groups.map(group => {
+        const lastMsgInfo = conversationLastMessages.value.get(group.id)
+        return {
+          id: group.id,
+          type: 'group' as const,
+          name: group.name,
+          avatar: group.avatar,
+          lastMessage: lastMsgInfo?.lastMessage || null,
+          lastMessageTime: lastMsgInfo?.lastMessageTime || null,
+          lastMessageType: lastMsgInfo?.lastMessageType,
+          unreadCount: unreadCounts[group.id] || 0,
+        }
+      })
 
       conversations.value = [...friendConversations, ...groupConversations]
     } catch (error) {
@@ -169,17 +273,28 @@ export const useChatStore = defineStore('chat', () => {
       // 0. 确保已读位置已加载
       await ensureLastReadPositionsLoaded()
 
-      // 1. 获取最后已读消息 ID
+      // 1. 先从 IndexedDB 加载缓存消息（快速显示）
+      if (currentUserId.value) {
+        const cachedMessages = await messageStorage.getPrivateMessages(
+          friendId,
+          currentUserId.value
+        )
+        if (cachedMessages.length > 0) {
+          privateMessages.value.set(friendId, cachedMessages)
+        }
+      }
+
+      // 2. 获取最后已读消息 ID
       const lastReadMessageId = lastReadMessageIds.value.get(friendId)
 
-      // 2. 如果有最后已读位置，只加载该位置之后的新消息
+      // 3. 如果有最后已读位置，只加载该位置之后的新消息
       if (lastReadMessageId) {
         const response = await messagesApi.getConversation(friendId, {
           after: lastReadMessageId,
           limit: options?.limit || 50,
         })
 
-        // 如果有新消息，更新消息列表
+        // 如果有新消息，合并到现有消息列表
         if (response.messages.length > 0) {
           const existing = privateMessages.value.get(friendId) || []
           const merged = mergeMessages(existing, response.messages)
@@ -194,23 +309,18 @@ export const useChatStore = defineStore('chat', () => {
 
           // 保存到 IndexedDB
           await messageStorage.savePrivateMessages(response.messages)
+
+          // 更新最新消息的 ID 作为已读位置
+          const latestMessage = response.messages[0]
+          if (latestMessage) {
+            await saveLastReadPosition(friendId, latestMessage.id)
+          }
         }
 
         return response
       }
 
-      // 3. 首次加载：先从 IndexedDB 加载缓存消息（快速显示）
-      if (currentUserId.value) {
-        const cachedMessages = await messageStorage.getPrivateMessages(
-          friendId,
-          currentUserId.value
-        )
-        if (cachedMessages.length > 0) {
-          privateMessages.value.set(friendId, cachedMessages)
-        }
-      }
-
-      // 4. 从 API 加载最新消息（不提供 before/after）
+      // 4. 首次加载：从 API 加载最新消息（不提供 before/after）
       const response = await messagesApi.getConversation(friendId, {
         limit: options?.limit || 50,
       })
@@ -333,17 +443,23 @@ export const useChatStore = defineStore('chat', () => {
       // 0. 确保已读位置已加载
       await ensureLastReadPositionsLoaded()
 
-      // 1. 获取最后已读消息 ID
+      // 1. 先从 IndexedDB 加载缓存消息（快速显示）
+      const cachedMessages = await messageStorage.getGroupMessages(groupId)
+      if (cachedMessages.length > 0) {
+        groupMessages.value.set(groupId, cachedMessages)
+      }
+
+      // 2. 获取最后已读消息 ID
       const lastReadMessageId = lastReadMessageIds.value.get(groupId)
 
-      // 2. 如果有最后已读位置，只加载该位置之后的新消息
+      // 3. 如果有最后已读位置，只加载该位置之后的新消息
       if (lastReadMessageId) {
         const response = await groupsApi.getMessages(groupId, {
           after: lastReadMessageId,
           limit: options?.limit || 50,
         })
 
-        // 如果有新消息，更新消息列表
+        // 如果有新消息，合并到现有消息列表
         if (response.messages.length > 0) {
           const existing = groupMessages.value.get(groupId) || []
           const merged = mergeMessages(existing, response.messages)
@@ -358,18 +474,18 @@ export const useChatStore = defineStore('chat', () => {
 
           // 保存到 IndexedDB
           await messageStorage.saveGroupMessages(response.messages)
+
+          // 更新最新消息的 ID 作为已读位置
+          const latestMessage = response.messages[0]
+          if (latestMessage) {
+            await saveLastReadPosition(groupId, latestMessage.id)
+          }
         }
 
         return response
       }
 
-      // 3. 首次加载：先从 IndexedDB 加载缓存消息（快速显示）
-      const cachedMessages = await messageStorage.getGroupMessages(groupId)
-      if (cachedMessages.length > 0) {
-        groupMessages.value.set(groupId, cachedMessages)
-      }
-
-      // 4. 从 API 加载最新消息（不提供 before/after）
+      // 4. 首次加载：从 API 加载最新消息（不提供 before/after）
       const response = await groupsApi.getMessages(groupId, {
         limit: options?.limit || 50,
       })
@@ -502,6 +618,31 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
 
+  function clearUnreadCount(chatId: string) {
+    unreadCounts[chatId] = 0
+    saveUnreadCounts()
+
+    // 同步已读位置到该会话最新消息，防止刷新后重新计算出未读数
+    const privateList = privateMessages.value.get(chatId)
+    const groupList = groupMessages.value.get(chatId)
+    const list = privateList || groupList
+    if (list && list.length > 0) {
+      const latest = list[list.length - 1]!
+      saveLastReadPosition(chatId, latest.id).catch(err => {
+        console.error('更新已读位置失败:', err)
+      })
+    } else {
+      // 消息未加载到内存，从 IndexedDB 查最新消息
+      messageStorage.getLastMessage(chatId).then(msg => {
+        if (msg) {
+          saveLastReadPosition(chatId, msg.id).catch(err => {
+            console.error('更新已读位置失败:', err)
+          })
+        }
+      })
+    }
+  }
+
   async function markAsRead(messageId: string) {
     try {
       await signalRService.markMessageAsRead(messageId)
@@ -514,7 +655,15 @@ export const useChatStore = defineStore('chat', () => {
   async function markAllAsRead(friendId: string) {
     try {
       await messagesApi.markAllAsRead(friendId)
-      unreadCounts.value.set(friendId, 0)
+      unreadCounts[friendId] = 0
+      saveUnreadCounts()
+
+      // 同步已读位置到最新消息
+      const list = privateMessages.value.get(friendId)
+      if (list && list.length > 0) {
+        const latest = list[list.length - 1]!
+        await saveLastReadPosition(friendId, latest.id)
+      }
     } catch (error) {
       console.error('Mark all as read failed:', error)
       throw error
@@ -536,10 +685,12 @@ export const useChatStore = defineStore('chat', () => {
       messages.push(message)
     }
 
-    // 更新已读位置（保存最新消息的 ID）
-    saveLastReadPosition(conversationId, message.id).catch(err => {
-      console.error('保存已读位置失败:', err)
-    })
+    // 只有在当前查看该聊天时才更新已读位置
+    if (conversationId === currentChatId.value) {
+      saveLastReadPosition(conversationId, message.id).catch(err => {
+        console.error('保存已读位置失败:', err)
+      })
+    }
 
     // 保存到 IndexedDB (异步,不阻塞 UI)
     messageStorage.savePrivateMessage(message).catch(err => {
@@ -547,12 +698,13 @@ export const useChatStore = defineStore('chat', () => {
     })
 
     // 更新会话列表
-    updateConversation(conversationId, 'private', message.content, message.createdAt)
+    updateConversation(conversationId, 'private', message.content, message.createdAt, message.type)
 
     // 只有接收到的消息才增加未读数,且不在当前查看的聊天中
     if (message.receiverId === currentUserId.value && conversationId !== currentChatId.value) {
-      const currentUnread = unreadCounts.value.get(conversationId) || 0
-      unreadCounts.value.set(conversationId, currentUnread + 1)
+      const currentUnread = unreadCounts[conversationId] || 0
+      unreadCounts[conversationId] = currentUnread + 1
+      saveUnreadCounts()
     }
   }
 
@@ -566,10 +718,12 @@ export const useChatStore = defineStore('chat', () => {
       messages.push(message)
     }
 
-    // 更新已读位置（保存最新消息的 ID）
-    saveLastReadPosition(message.groupId, message.id).catch(err => {
-      console.error('保存已读位置失败:', err)
-    })
+    // 只有在当前查看该群聊时才更新已读位置
+    if (message.groupId === currentChatId.value) {
+      saveLastReadPosition(message.groupId, message.id).catch(err => {
+        console.error('保存已读位置失败:', err)
+      })
+    }
 
     // 保存到 IndexedDB (异步,不阻塞 UI)
     messageStorage.saveGroupMessage(message).catch(err => {
@@ -577,18 +731,22 @@ export const useChatStore = defineStore('chat', () => {
     })
 
     // 更新会话列表
-    updateConversation(message.groupId, 'group', message.content, message.createdAt)
+    updateConversation(message.groupId, 'group', message.content, message.createdAt, message.type)
 
-    // 更新未读数
-    const currentUnread = unreadCounts.value.get(message.groupId) || 0
-    unreadCounts.value.set(message.groupId, currentUnread + 1)
+    // 只有不在当前查看的群聊中时才增加未读数
+    if (message.groupId !== currentChatId.value) {
+      const currentUnread = unreadCounts[message.groupId] || 0
+      unreadCounts[message.groupId] = currentUnread + 1
+      saveUnreadCounts()
+    }
   }
 
   async function updateConversation(
     id: string,
     type: 'private' | 'group',
     lastMessage: string,
-    lastMessageTime: string
+    lastMessageTime: string,
+    lastMessageType?: string
   ) {
     const index = conversations.value.findIndex((c) => c.id === id)
 
@@ -597,7 +755,8 @@ export const useChatStore = defineStore('chat', () => {
       if (conversation) {
         conversation.lastMessage = lastMessage
         conversation.lastMessageTime = lastMessageTime
-        conversation.unreadCount = unreadCounts.value.get(id) || 0
+        conversation.lastMessageType = lastMessageType
+        conversation.unreadCount = unreadCounts[id] || 0
       }
     } else {
       // 新会话,添加到列表
@@ -634,11 +793,20 @@ export const useChatStore = defineStore('chat', () => {
         avatar,
         lastMessage,
         lastMessageTime,
-        unreadCount: unreadCounts.value.get(id) || 0,
+        lastMessageType,
+        unreadCount: unreadCounts[id] || 0,
         isOnline,
         user,
       })
     }
+
+    // 保存会话最后消息信息到 localStorage
+    conversationLastMessages.value.set(id, {
+      lastMessage,
+      lastMessageTime,
+      lastMessageType,
+    })
+    saveConversationLastMessages()
   }
 
   function setTypingStatus(userId: string, isTyping: boolean) {
@@ -650,6 +818,73 @@ export const useChatStore = defineStore('chat', () => {
         typingUsers.value.set(userId, false)
       }, 3000)
     }
+  }
+
+  /**
+   * 处理好友被删除事件
+   * @param friendId 被删除的好友 ID
+   */
+  async function handleFriendDeleted(friendId: string) {
+    try {
+      console.log('[FriendDeleted] 收到好友删除事件:', {
+        friendId,
+        currentUserId: currentUserId.value,
+        currentChatId: currentChatId.value,
+        isCurrentChat: currentChatId.value === friendId
+      })
+
+      // 1. 删除内存中的私聊消息
+      privateMessages.value.delete(friendId)
+      console.log('[FriendDeleted] 已删除内存中的消息')
+
+      // 2. 删除 IndexedDB 中的私聊消息
+      if (currentUserId.value) {
+        await messageStorage.deletePrivateMessages(friendId, currentUserId.value)
+        console.log('[FriendDeleted] 已删除 IndexedDB 中的消息')
+      } else {
+        console.warn('[FriendDeleted] currentUserId 为空，无法删除 IndexedDB 消息')
+      }
+
+      // 3. 删除已读位置
+      lastReadMessageIds.value.delete(friendId)
+      await messageStorage.deleteLastReadPosition(friendId)
+      console.log('[FriendDeleted] 已删除已读位置')
+
+      // 4. 从会话列表中移除该好友
+      conversations.value = conversations.value.filter((c) => c.id !== friendId)
+      console.log('[FriendDeleted] 已从会话列表移除')
+
+      // 5. 清除未读计数
+      delete unreadCounts[friendId]
+      saveUnreadCounts()
+
+      // 5.5. 清除会话最后消息信息
+      conversationLastMessages.value.delete(friendId)
+      saveConversationLastMessages()
+
+      // 6. 清除游标状态
+      privateCursors.value.delete(friendId)
+
+      // 7. 设置 deletedFriendId 以通知 UI 层（如果当前正在查看该好友的聊天）
+      if (currentChatId.value === friendId) {
+        deletedFriendId.value = friendId
+        console.log('[FriendDeleted] 设置 deletedFriendId，将显示提示框')
+      } else {
+        console.log('[FriendDeleted] 不是当前聊天，不显示提示框')
+      }
+
+      console.log(`[FriendDeleted] 已删除好友 ${friendId} 的所有本地数据`)
+    } catch (error) {
+      console.error('[FriendDeleted] 处理好友删除失败:', error)
+      throw error
+    }
+  }
+
+  /**
+   * 清除被删除好友的通知状态
+   */
+  function clearDeletedFriendNotification() {
+    deletedFriendId.value = null
   }
 
   // 初始化 SignalR 事件监听
@@ -685,6 +920,12 @@ export const useChatStore = defineStore('chat', () => {
           break
         }
       }
+    })
+
+    // 好友关系被删除
+    signalRService.on('FriendDeleted', async (data: { userId: string }) => {
+      console.log('[SignalR] 收到 FriendDeleted 事件:', data)
+      await handleFriendDeleted(data.userId)
     })
   }
 
@@ -748,9 +989,14 @@ export const useChatStore = defineStore('chat', () => {
       privateMessages.value.clear()
       groupMessages.value.clear()
       conversations.value = []
-      unreadCounts.value.clear()
+      Object.keys(unreadCounts).forEach(key => delete unreadCounts[key])
       typingUsers.value.clear()
       lastReadMessageIds.value.clear()
+      conversationLastMessages.value.clear()
+
+      // 清除 localStorage 中的未读数和会话最后消息信息
+      saveUnreadCounts()
+      saveConversationLastMessages()
     } catch (error) {
       console.error('清除缓存失败:', error)
       throw error
@@ -794,6 +1040,7 @@ export const useChatStore = defineStore('chat', () => {
     typingUsers,
     currentUserId,
     currentChatId,
+    deletedFriendId,
     totalUnreadCount,
     sortedConversations,
     loadConversations,
@@ -805,11 +1052,14 @@ export const useChatStore = defineStore('chat', () => {
     loadNewerGroupMessages,
     sendPrivateMessage,
     sendGroupMessage,
+    clearUnreadCount,
     markAsRead,
     markAllAsRead,
     addPrivateMessage,
     addGroupMessage,
     setTypingStatus,
+    handleFriendDeleted,
+    clearDeletedFriendNotification,
     setupSignalRListeners,
     setCurrentUserId,
     setCurrentChatId,

@@ -42,9 +42,9 @@ const emit = defineEmits<{
       </div>
       <div
         v-else
-        class="size-14 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center border-2 border-white dark:border-slate-900 shadow-sm"
+        class="size-14 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center shadow-sm"
       >
-        <span class="material-symbols-outlined text-slate-400 text-3xl">person</span>
+        <span class="material-symbols-outlined text-white text-3xl">person</span>
       </div>
       <div
         v-if="online && !isGroup"

@@ -18,7 +18,7 @@ public record UserDto(
     DateTimeOffset? LastOnline
 );
 
-public record UpdateProfileRequest(string DisplayName);
+public record UpdateProfileRequest(string DisplayName, string? Avatar);
 
 public record SearchUsersResponse(List<UserDto> Users);
 
