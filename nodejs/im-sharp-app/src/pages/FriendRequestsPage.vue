@@ -50,7 +50,7 @@ async function handleReject(requestId: string) {
 
 <template>
   <div class="min-h-screen bg-slate-50 dark:bg-slate-900">
-    <Header title="好友请求" :show-back="true" @back="router.back()" />
+    <Header title="好友请求" :show-back="true" @back="router.push('/contacts')" />
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex justify-center py-12">

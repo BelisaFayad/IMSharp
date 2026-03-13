@@ -54,7 +54,7 @@ function handleSendMessage() {
 
 <template>
   <div class="min-h-screen w-full bg-slate-50 dark:bg-slate-900">
-    <Header title="用户详情" :show-back="true" @back="router.back()">
+    <Header title="用户详情" :show-back="true" @back="router.push('/contacts')">
       <template #right>
         <div class="size-8 flex items-center justify-center">
           <span class="material-symbols-outlined text-slate-400">more_horiz</span>

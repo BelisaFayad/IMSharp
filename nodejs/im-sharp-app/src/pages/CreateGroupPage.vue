@@ -101,7 +101,7 @@ async function handleCreateGroup() {
 
 <template>
   <div class="relative flex h-screen flex-col bg-white dark:bg-slate-900 overflow-hidden">
-    <Header title="创建群聊" :show-back="true" @back="router.back()">
+    <Header title="创建群聊" :show-back="true" @back="router.push('/groups')">
       <template #right>
         <button
           @click="handleCreateGroup"

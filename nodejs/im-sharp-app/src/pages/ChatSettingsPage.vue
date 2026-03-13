@@ -91,7 +91,7 @@ async function handleClearChat() {
 
     // 延迟返回，让用户看到提示
     setTimeout(() => {
-      router.back()
+      router.push(`/chats/${chatId}`)
     }, 500)
   } catch (error) {
     console.error('清空聊天记录失败:', error)
@@ -102,7 +102,7 @@ async function handleClearChat() {
 
 <template>
   <div class="min-h-screen w-full bg-slate-50 dark:bg-slate-900 pb-10">
-    <Header title="聊天详情" :show-back="true" @back="router.back()" />
+    <Header title="聊天详情" :show-back="true" @back="router.push(`/chats/${chatId}`)" />
 
     <!-- User Info Card -->
     <div
@@ -122,7 +122,10 @@ async function handleClearChat() {
 
     <!-- Settings Options -->
     <div class="mt-6 bg-white dark:bg-slate-800 border-y border-slate-100 dark:border-slate-700">
-      <div class="flex items-center justify-between px-4 py-4 border-b border-slate-50 dark:border-slate-700">
+      <div
+        @click="router.push(`/chats/${chatId}?search=true`)"
+        class="flex items-center justify-between px-4 py-4 border-b border-slate-50 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+      >
         <span class="text-slate-900 dark:text-white">查找聊天记录</span>
         <span class="material-symbols-outlined text-slate-400">chevron_right</span>
       </div>

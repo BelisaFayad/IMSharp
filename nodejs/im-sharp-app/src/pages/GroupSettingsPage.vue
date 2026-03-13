@@ -201,7 +201,7 @@ async function handleTogglePublic() {
 
 <template>
   <div class="flex flex-col h-screen bg-slate-50 dark:bg-slate-900">
-    <Header title="群组设置" :show-back="true" @back="router.back()">
+    <Header title="群组设置" :show-back="true" @back="router.push(`/groups/${groupId}`)">
       <template v-if="isAdmin" #right>
         <button
           @click="handleOpenEditModal"
@@ -288,6 +288,15 @@ async function handleTogglePublic() {
 
         <!-- 群组设置列表 -->
         <div class="bg-white dark:bg-slate-800 rounded-lg divide-y divide-slate-200 dark:divide-slate-700">
+          <!-- 查找聊天记录 -->
+          <div
+            @click="router.push(`/groups/${groupId}?search=true`)"
+            class="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+          >
+            <span class="text-sm text-slate-700 dark:text-slate-300">查找聊天记录</span>
+            <span class="material-symbols-outlined text-slate-400 text-sm">chevron_right</span>
+          </div>
+
           <!-- 群公告 -->
           <div
             class="p-4 flex items-center justify-between"

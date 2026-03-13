@@ -68,7 +68,7 @@ function hasSentRequest(userId: string): boolean {
 
 <template>
   <div class="relative flex h-screen flex-col bg-white dark:bg-slate-900 overflow-hidden">
-    <Header title="添加好友" :show-back="true" @back="router.back()" right-icon="primary:group_add" @right="router.push('/groups')" />
+    <Header title="添加好友" :show-back="true" @back="router.push('/contacts')" right-icon="primary:group_add" @right="router.push('/groups')" />
 
     <div class="px-4 py-3 bg-white dark:bg-slate-900">
       <div class="flex w-full items-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 px-4 py-2.5">

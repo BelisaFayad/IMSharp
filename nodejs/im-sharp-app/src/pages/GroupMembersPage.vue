@@ -131,7 +131,7 @@ function handleInviteMembers() {
 
 <template>
   <div class="flex flex-col h-screen bg-slate-50 dark:bg-slate-900">
-    <Header title="群组成员" :show-back="true" @back="router.back()">
+    <Header title="群组成员" :show-back="true" @back="router.push(`/groups/${groupId}/settings`)">
       <template #right>
         <button
           v-if="isAdmin"

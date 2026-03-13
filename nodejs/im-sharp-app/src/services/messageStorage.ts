@@ -394,4 +394,80 @@ export const messageStorage = {
       return null
     }
   },
+
+  // ==================== 搜索操作 ====================
+
+  /**
+   * 搜索私聊消息（离线）
+   * @param userId 对方用户 ID
+   * @param currentUserId 当前用户 ID
+   * @param keyword 搜索关键词
+   * @returns 匹配的消息列表（按时间倒序）
+   */
+  async searchPrivateMessages(
+    userId: string,
+    currentUserId: string,
+    keyword: string
+  ): Promise<PrivateMessage[]> {
+    if (!keyword.trim()) {
+      return []
+    }
+
+    try {
+      const lowerKeyword = keyword.toLowerCase()
+
+      // 获取所有消息（不限制数量）
+      const messages = await db.privateMessages
+        .where('[senderId+receiverId]')
+        .equals([currentUserId, userId])
+        .or('[senderId+receiverId]')
+        .equals([userId, currentUserId])
+        .toArray()
+
+      // 在内存中过滤：只搜索文本消息，大小写不敏感
+      const results = messages.filter(
+        (msg) => msg.type === 'Text' && msg.content.toLowerCase().includes(lowerKeyword)
+      )
+
+      // 按时间倒序排序（最新的在前）
+      return results.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+    } catch (error) {
+      console.error('搜索私聊消息失败:', error)
+      return []
+    }
+  },
+
+  /**
+   * 搜索群聊消息（离线）
+   * @param groupId 群组 ID
+   * @param keyword 搜索关键词
+   * @returns 匹配的消息列表（按时间倒序）
+   */
+  async searchGroupMessages(groupId: string, keyword: string): Promise<GroupMessage[]> {
+    if (!keyword.trim()) {
+      return []
+    }
+
+    try {
+      const lowerKeyword = keyword.toLowerCase()
+
+      // 获取所有群聊消息
+      const messages = await db.groupMessages.where('groupId').equals(groupId).toArray()
+
+      // 在内存中过滤：只搜索文本消息，大小写不敏感
+      const results = messages.filter(
+        (msg) => msg.type === 'Text' && msg.content.toLowerCase().includes(lowerKeyword)
+      )
+
+      // 按时间倒序排序（最新的在前）
+      return results.sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+    } catch (error) {
+      console.error('搜索群聊消息失败:', error)
+      return []
+    }
+  },
 }

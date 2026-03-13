@@ -162,7 +162,7 @@ function handleMyJoinRequestsClick() {
 
 <template>
   <div class="flex flex-col h-screen overflow-hidden">
-    <Header title="搜索群聊" :show-back="true" @back="router.back()" right-icon="primary:person_add" @right="router.push('/contacts/add')" />
+    <Header title="搜索群聊" :show-back="true" @back="router.push('/chats')" right-icon="primary:person_add" @right="router.push('/contacts/add')" />
 
     <div class="px-4 py-3 bg-white dark:bg-slate-900">
       <div class="flex w-full items-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 px-4 py-2.5">

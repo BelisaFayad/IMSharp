@@ -100,7 +100,7 @@ async function handleInviteMembers() {
   try {
     await groupsStore.inviteMembers(groupId, Array.from(selectedMembers.value))
     uiStore.showToast('邀请成功', 'success')
-    router.back()
+    router.push(`/groups/${groupId}/settings`)
   } catch (error) {
     console.error('邀请成员失败:', error)
     uiStore.showToast('邀请成员失败', 'error')
@@ -112,7 +112,7 @@ async function handleInviteMembers() {
 
 <template>
   <div class="flex flex-col h-screen bg-slate-50 dark:bg-slate-900">
-    <Header title="邀请成员" :show-back="true" @back="router.back()" />
+    <Header title="邀请成员" :show-back="true" @back="router.push(`/groups/${groupId}/settings`)" />
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex-1 flex items-center justify-center">

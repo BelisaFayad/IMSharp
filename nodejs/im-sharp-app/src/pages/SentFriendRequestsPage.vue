@@ -60,7 +60,7 @@ function formatTime(time: string) {
 
 <template>
   <div class="flex flex-col h-screen bg-slate-50 dark:bg-slate-900">
-    <Header title="我的申请" :show-back="true" @back="router.back()" />
+    <Header title="我的申请" :show-back="true" @back="router.push('/contacts/add')" />
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex-1 flex items-center justify-center">

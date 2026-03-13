@@ -83,7 +83,7 @@ async function handleDeleteAndExit() {
 
 <template>
   <div class="min-h-screen w-full bg-slate-50 dark:bg-slate-900 pb-10">
-    <Header title="群组详情" :show-back="true" @back="router.back()" />
+    <Header title="群组详情" :show-back="true" @back="router.push('/groups')" />
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex items-center justify-center py-20">

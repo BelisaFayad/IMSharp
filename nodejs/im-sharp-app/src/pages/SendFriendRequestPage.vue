@@ -22,7 +22,7 @@ onMounted(async () => {
     user.value = await usersApi.getById(userId)
   } catch (error) {
     console.error('获取用户信息失败:', error)
-    router.back()
+    router.push('/contacts/add')
   } finally {
     isFetching.value = false
   }
@@ -35,7 +35,7 @@ async function handleSend() {
   try {
     await contactsStore.sendFriendRequest(user.value.id, message.value)
     // 发送成功后返回
-    router.back()
+    router.push('/contacts/add')
   } catch (error) {
     console.error('发送好友请求失败:', error)
   } finally {
@@ -46,7 +46,7 @@ async function handleSend() {
 
 <template>
   <div class="relative flex h-screen flex-col bg-white dark:bg-slate-900 overflow-hidden">
-    <Header title="发送申请" :show-back="true" @back="router.back()" right-text="发送" :right-disabled="isLoading || isFetching" @right="handleSend" />
+    <Header title="发送申请" :show-back="true" @back="router.push('/contacts/add')" right-text="发送" :right-disabled="isLoading || isFetching" @right="handleSend" />
 
     <div v-if="isFetching" class="flex-1 flex items-center justify-center">
       <LoadingSpinner />

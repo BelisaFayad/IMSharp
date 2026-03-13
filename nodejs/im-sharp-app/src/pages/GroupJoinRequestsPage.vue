@@ -113,7 +113,7 @@ function getStatusColor(status: string) {
     <Header
       :title="isGroupRequests ? '入群申请' : '我的申请'"
       :show-back="true"
-      @back="router.back()"
+      @back="isGroupRequests ? router.push(`/groups/${groupId}/settings`) : router.push('/groups')"
     />
 
     <!-- 加载中 -->

@@ -21,7 +21,7 @@ async function handleSave() {
   try {
     await authStore.updateProfile(displayName.value, avatarUrl.value || undefined)
     uiStore.showToast('保存成功', 'success')
-    router.back()
+    router.push('/profile')
   } catch (error) {
     console.error('Update profile failed:', error)
     uiStore.showToast('保存失败', 'error')
@@ -74,7 +74,7 @@ async function handleFileSelect(event: Event) {
           variant="ghost"
           size="sm"
           :disabled="isLoading"
-          @click="router.back()"
+          @click="router.push('/profile')"
         >
           取消
         </Button>

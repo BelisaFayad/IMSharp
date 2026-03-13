@@ -2,9 +2,9 @@
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useChatStore, useContactsStore, useAuthStore, useUiStore } from '@/stores'
-import { MessageBubble, LoadingSpinner, ConfirmationModal, Header, ChatInputBar } from '@/components'
+import { MessageBubble, LoadingSpinner, ConfirmationModal, Header, ChatInputBar, SearchInput } from '@/components'
 import { containsScript } from '@/utils/contentValidator'
-import { signalRService } from '@/services'
+import { signalRService, messageStorage } from '@/services'
 import type { PrivateMessage } from '@/types'
 
 const route = useRoute()
@@ -20,6 +20,13 @@ const chatInputBarRef = ref<InstanceType<typeof ChatInputBar> | null>(null)
 const isLoading = ref(true)
 const isSending = ref(false)
 const showFriendDeletedDialog = ref(false)
+
+// 搜索相关状态
+const isSearchMode = ref(false)
+const searchKeyword = ref('')
+const searchResults = ref<PrivateMessage[]>([])
+const isSearching = ref(false)
+const highlightedMessageId = ref<string | null>(null)
 
 // 获取聊天对象信息
 const chatUser = computed(() => {
@@ -49,6 +56,7 @@ async function handleReconnected() {
 
 onMounted(async () => {
   signalRService.on('Reconnected', handleReconnected)
+  window.addEventListener('keydown', handleKeydown)
 
   try {
     // 设置当前聊天 ID
@@ -64,6 +72,11 @@ onMounted(async () => {
 
     // 标记所有消息为已读
     await chatStore.markAllAsRead(chatId)
+
+    // 检查是否需要进入搜索模式
+    if (route.query.search === 'true') {
+      isSearchMode.value = true
+    }
   } catch (error) {
     console.error('加载聊天失败:', error)
   } finally {
@@ -78,6 +91,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   signalRService.off('Reconnected', handleReconnected)
+  window.removeEventListener('keydown', handleKeydown)
   // 清除当前聊天 ID
   chatStore.setCurrentChatId(null)
 })
@@ -177,13 +191,105 @@ function shouldShowTimestamp(index: number): boolean {
   // 超过5分钟显示时间
   return currentTime - prevTime > 5 * 60 * 1000
 }
+
+// 防抖工具函数
+function debounce<T extends (...args: any[]) => any>(func: T, wait: number): (...args: Parameters<T>) => void {
+  let timeout: ReturnType<typeof setTimeout> | null = null
+  return function (...args: Parameters<T>) {
+    if (timeout) clearTimeout(timeout)
+    timeout = setTimeout(() => func(...args), wait)
+  }
+}
+
+// 切换搜索模式
+function toggleSearchMode() {
+  isSearchMode.value = !isSearchMode.value
+  if (!isSearchMode.value) {
+    // 退出搜索模式时清空
+    searchKeyword.value = ''
+    searchResults.value = []
+    highlightedMessageId.value = null
+  }
+}
+
+// 执行搜索（带防抖）
+const performSearch = debounce(async (keyword: string) => {
+  if (!keyword.trim()) {
+    searchResults.value = []
+    return
+  }
+
+  isSearching.value = true
+  try {
+    const results = await messageStorage.searchPrivateMessages(
+      chatId,
+      authStore.user!.id,
+      keyword
+    )
+    searchResults.value = results
+  } catch (error) {
+    console.error('搜索消息失败:', error)
+    uiStore.showToast('搜索失败', 'error')
+  } finally {
+    isSearching.value = false
+  }
+}, 300)
+
+// 监听搜索关键词变化
+watch(searchKeyword, (newKeyword) => {
+  performSearch(newKeyword)
+})
+
+// 定位到指定消息
+function scrollToMessage(messageId: string) {
+  highlightedMessageId.value = messageId
+
+  // 查找消息元素并滚动
+  nextTick(() => {
+    const messageElement = document.querySelector(`[data-message-id="${messageId}"]`)
+    if (messageElement) {
+      messageElement.scrollIntoView({ behavior: 'smooth', block: 'center' })
+
+      // 3 秒后取消高亮
+      setTimeout(() => {
+        highlightedMessageId.value = null
+      }, 3000)
+    }
+  })
+
+  // 关闭搜索模式
+  isSearchMode.value = false
+  searchKeyword.value = ''
+  searchResults.value = []
+}
+
+// 高亮搜索关键词
+function highlightKeyword(text: string, keyword: string): string {
+  if (!keyword.trim()) return text
+
+  const regex = new RegExp(`(${keyword})`, 'gi')
+  return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-700">$1</mark>')
+}
+
+// 监听 ESC 键关闭搜索
+function handleKeydown(e: KeyboardEvent) {
+  if (e.key === 'Escape' && isSearchMode.value) {
+    toggleSearchMode()
+  }
+}
 </script>
 
 <template>
   <div class="text-slate-900 dark:text-slate-100 h-screen flex flex-col relative">
-    <Header :title="chatUser?.displayName || chatUser?.username || '聊天详情'" :show-back="true" @back="router.back()">
+    <Header :title="chatUser?.displayName || chatUser?.username || '聊天详情'" :show-back="true" @back="router.push('/chats')">
       <template #title>
-        <div v-if="chatUser" class="flex flex-col items-center">
+        <!-- 搜索模式：显示标题 -->
+        <div v-if="isSearchMode" class="flex flex-col items-center">
+          <h1 class="text-lg font-bold leading-none text-slate-900 dark:text-white">查找聊天记录</h1>
+        </div>
+
+        <!-- 正常模式：显示用户名 -->
+        <div v-else-if="chatUser" class="flex flex-col items-center">
           <h1 class="text-lg font-bold leading-none text-slate-900 dark:text-white">{{ chatUser.displayName || chatUser.username }}</h1>
           <span
             v-if="isTyping"
@@ -204,7 +310,18 @@ function shouldShowTimestamp(index: number): boolean {
         </div>
       </template>
       <template #right>
+        <!-- 搜索模式：显示关闭按钮 -->
         <button
+          v-if="isSearchMode"
+          @click="toggleSearchMode"
+          class="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+        >
+          <span class="material-symbols-outlined text-2xl text-slate-900 dark:text-white">close</span>
+        </button>
+
+        <!-- 正常模式：显示聊天详情菜单按钮 -->
+        <button
+          v-else
           @click="router.push(`/chats/${chatId}/settings`)"
           class="flex items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
         >
@@ -212,6 +329,61 @@ function shouldShowTimestamp(index: number): boolean {
         </button>
       </template>
     </Header>
+
+    <!-- 搜索输入框 -->
+    <div v-if="isSearchMode" class="bg-white dark:bg-slate-800 px-4 py-3 border-b border-slate-200 dark:border-slate-700">
+      <SearchInput
+        v-model="searchKeyword"
+        placeholder="搜索聊天记录..."
+        class="w-full"
+      />
+    </div>
+
+    <!-- 搜索结果面板 -->
+    <div
+      v-if="isSearchMode"
+      class="flex-1 bg-white dark:bg-slate-900 overflow-y-auto"
+    >
+      <!-- 加载状态 -->
+      <div v-if="isSearching" class="flex items-center justify-center py-8">
+        <LoadingSpinner />
+      </div>
+
+      <!-- 搜索结果列表 -->
+      <div v-else-if="searchResults.length > 0" class="divide-y divide-slate-200 dark:divide-slate-800">
+        <div
+          v-for="result in searchResults"
+          :key="result.id"
+          @click="scrollToMessage(result.id)"
+          class="p-4 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
+        >
+          <!-- 发送者 -->
+          <div class="text-sm text-slate-600 dark:text-slate-400 mb-1">
+            {{ result.senderId === authStore.user?.id ? '我' : (chatUser?.displayName || chatUser?.username) }}
+          </div>
+
+          <!-- 消息内容（高亮关键词） -->
+          <div class="text-slate-900 dark:text-white" v-html="highlightKeyword(result.content, searchKeyword)"></div>
+
+          <!-- 时间 -->
+          <div class="text-xs text-slate-500 dark:text-slate-500 mt-1">
+            {{ formatTime(result.createdAt) }}
+          </div>
+        </div>
+      </div>
+
+      <!-- 无结果提示 -->
+      <div v-else-if="searchKeyword.trim()" class="flex flex-col items-center justify-center py-16 text-slate-500">
+        <span class="material-symbols-outlined text-6xl mb-4">search_off</span>
+        <p>未找到匹配的消息</p>
+      </div>
+
+      <!-- 初始提示 -->
+      <div v-else class="flex flex-col items-center justify-center py-16 text-slate-500">
+        <span class="material-symbols-outlined text-6xl mb-4">search</span>
+        <p>输入关键词搜索聊天记录</p>
+      </div>
+    </div>
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex-1 flex items-center justify-center bg-slate-50 dark:bg-slate-900">
@@ -234,14 +406,20 @@ function shouldShowTimestamp(index: number): boolean {
           </div>
 
           <!-- 消息气泡 -->
-          <MessageBubble
-            :content="message.content"
-            :type="message.type"
-            :is-self="message.senderId === authStore.user?.id"
-            :time="formatTime(message.createdAt)"
-            :status="message.status.toLowerCase() as 'sent' | 'delivered' | 'read'"
-            :avatar="message.senderId === authStore.user?.id ? authStore.user?.avatar || undefined : chatUser?.avatar || undefined"
-          />
+          <div
+            :data-message-id="message.id"
+            :class="{ 'bg-yellow-100 dark:bg-yellow-900/30 rounded-lg p-2 -m-2': highlightedMessageId === message.id }"
+            class="transition-colors duration-300"
+          >
+            <MessageBubble
+              :content="message.content"
+              :type="message.type"
+              :is-self="message.senderId === authStore.user?.id"
+              :time="formatTime(message.createdAt)"
+              :status="message.status.toLowerCase() as 'sent' | 'delivered' | 'read'"
+              :avatar="message.senderId === authStore.user?.id ? authStore.user?.avatar || undefined : chatUser?.avatar || undefined"
+            />
+          </div>
         </template>
       </template>
 
