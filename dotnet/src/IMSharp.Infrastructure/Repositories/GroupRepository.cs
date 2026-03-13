@@ -221,4 +221,11 @@ public class GroupRepository(ApplicationDbContext context) : IGroupRepository
             .Where(g => g.OwnerId == ownerId)
             .CountAsync(cancellationToken);
     }
+
+    public async Task<int> DeleteOldGroupMessagesAsync(DateTimeOffset before, CancellationToken cancellationToken = default)
+    {
+        return await context.GroupMessages
+            .Where(m => m.CreatedAt < before)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
 }

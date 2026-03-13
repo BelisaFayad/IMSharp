@@ -14,4 +14,5 @@ public interface IPrivateMessageRepository
     Task MarkAsReadAsync(Guid messageId, CancellationToken cancellationToken = default);
     Task MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
     Task DeleteConversationAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
+    Task<int> DeleteOldMessagesAsync(DateTimeOffset before, CancellationToken cancellationToken = default);
 }

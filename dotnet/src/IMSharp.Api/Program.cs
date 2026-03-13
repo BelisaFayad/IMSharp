@@ -1,5 +1,7 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using IMSharp.Api.BackgroundServices;
+using IMSharp.Api.Configuration;
 using IMSharp.Api.Hubs;
 using IMSharp.Api.Middleware;
 using IMSharp.Core.Authentication;
@@ -54,6 +56,12 @@ builder.Services.AddHttpClient<IOAuthProvider, GenericOAuthProvider>();
 
 // Register Storage
 builder.Services.AddSingleton<IStorageProvider, LocalStorageProvider>();
+
+// Configure MessageCleanup Options
+builder.Services.Configure<MessageCleanupOptions>(builder.Configuration.GetSection("MessageCleanup"));
+
+// Register Background Services
+builder.Services.AddHostedService<MessageCleanupService>();
 
 // Configure JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("Jwt");

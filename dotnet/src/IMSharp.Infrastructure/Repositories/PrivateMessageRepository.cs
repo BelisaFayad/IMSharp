@@ -122,4 +122,11 @@ public class PrivateMessageRepository(ApplicationDbContext context) : IPrivateMe
                         (m.SenderId == friendId && m.ReceiverId == userId))
             .ExecuteDeleteAsync(cancellationToken);
     }
+
+    public async Task<int> DeleteOldMessagesAsync(DateTimeOffset before, CancellationToken cancellationToken = default)
+    {
+        return await context.PrivateMessages
+            .Where(m => m.CreatedAt < before)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
 }
