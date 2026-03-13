@@ -16,7 +16,9 @@ const uiStore = useUiStore()
 
 const chatId = route.params.id as string
 const messagesContainer = ref<HTMLElement | null>(null)
+const chatInputBarRef = ref<InstanceType<typeof ChatInputBar> | null>(null)
 const isLoading = ref(true)
+const isSending = ref(false)
 const showFriendDeletedDialog = ref(false)
 
 // 获取聊天对象信息
@@ -112,10 +114,17 @@ async function handleSendText(content: string) {
     uiStore.showToast('消息内容包含不允许的脚本内容', 'error')
     return
   }
+
+  isSending.value = true
   try {
     await chatStore.sendPrivateMessage(chatId, content)
+    // 发送成功后清空输入框
+    chatInputBarRef.value?.clearInput()
   } catch (error) {
     console.error('发送消息失败:', error)
+    uiStore.showToast('发送消息失败', 'error')
+  } finally {
+    isSending.value = false
   }
 }
 
@@ -243,7 +252,7 @@ function shouldShowTimestamp(index: number): boolean {
       </div>
     </main>
 
-    <ChatInputBar @send-text="handleSendText" @send-image="handleSendImage" />
+    <ChatInputBar ref="chatInputBarRef" :is-sending="isSending" @send-text="handleSendText" @send-image="handleSendImage" />
 
     <!-- 好友删除确认对话框 -->
     <ConfirmationModal

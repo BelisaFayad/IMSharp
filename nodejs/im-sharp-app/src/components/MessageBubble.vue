@@ -66,9 +66,9 @@ function handleCloseViewer() {
       ></div>
       <div
         v-else
-        class="size-10 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center"
+        class="size-10 rounded-full bg-gradient-to-br from-blue-400 to-violet-500 flex items-center justify-center shadow-sm"
       >
-        <span class="material-symbols-outlined text-slate-400 text-xl">person</span>
+        <span class="material-symbols-outlined text-white text-xl">person</span>
       </div>
     </div>
 

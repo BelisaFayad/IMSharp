@@ -4,6 +4,14 @@ import { EmojiPicker } from '@/components'
 import { mediaApi } from '@/services/api'
 import { useUiStore } from '@/stores'
 
+interface Props {
+  isSending?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  isSending: false
+})
+
 const emit = defineEmits<{
   sendText: [content: string]
   sendImage: [url: string]
@@ -11,22 +19,25 @@ const emit = defineEmits<{
 
 const uiStore = useUiStore()
 const messageInput = ref('')
-const isSending = ref(false)
 const isUploading = ref(false)
 const showEmojiPicker = ref(false)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
-async function handleSendMessage() {
-  if (!messageInput.value.trim() || isSending.value) return
+function handleSendMessage() {
+  if (!messageInput.value.trim() || props.isSending) return
   const content = messageInput.value.trim()
-  messageInput.value = ''
-  isSending.value = true
-  try {
-    emit('sendText', content)
-  } finally {
-    isSending.value = false
-  }
+  emit('sendText', content)
 }
+
+// 清空输入框（供父组件调用）
+function clearInput() {
+  messageInput.value = ''
+}
+
+// 暴露方法给父组件
+defineExpose({
+  clearInput
+})
 
 function handleEmojiSelect(emoji: string) {
   messageInput.value += emoji
@@ -106,14 +117,16 @@ async function handlePaste(e: ClipboardEvent) {
           @focus="showEmojiPicker = false"
           @keyup.enter="handleSendMessage"
           @paste="handlePaste"
+          :disabled="props.isSending"
           maxlength="1000"
-          class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-full py-2.5 px-4 pr-12 text-base focus:ring-2 focus:ring-primary/50 transition-all text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400"
+          class="w-full bg-slate-100 dark:bg-slate-700 border-none rounded-full py-2.5 px-4 pr-12 text-base focus:ring-2 focus:ring-primary/50 transition-all text-slate-900 dark:text-white placeholder:text-slate-500 dark:placeholder:text-slate-400 disabled:opacity-50 disabled:cursor-not-allowed"
           placeholder="输入消息..."
           type="text"
         />
         <button
           @click="showEmojiPicker = !showEmojiPicker"
-          class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors"
+          :disabled="props.isSending"
+          class="absolute right-3 top-1/2 -translate-y-1/2 transition-colors disabled:opacity-50"
           :class="showEmojiPicker ? 'text-primary' : 'text-slate-500 hover:text-primary'"
         >
           <span class="material-symbols-outlined text-2xl">sentiment_satisfied</span>
@@ -122,12 +135,12 @@ async function handlePaste(e: ClipboardEvent) {
 
       <!-- 发送按钮（右侧，高度与输入框一致） -->
       <button
-        v-if="messageInput.trim()"
+        v-if="messageInput.trim() || props.isSending"
         @click="handleSendMessage"
-        :disabled="isSending"
+        :disabled="props.isSending"
         class="px-4 flex items-center justify-center rounded-full bg-primary text-white hover:bg-primary/90 transition-colors disabled:opacity-50 shrink-0 self-stretch"
       >
-        <span v-if="isSending" class="material-symbols-outlined text-2xl animate-spin">progress_activity</span>
+        <span v-if="props.isSending" class="material-symbols-outlined text-2xl animate-spin">progress_activity</span>
         <span v-else class="material-symbols-outlined text-2xl">send</span>
       </button>
     </div>

@@ -345,6 +345,20 @@ export const messageStorage = {
     lastReadMessageId: string
   ): Promise<number> {
     try {
+      // 检查是否为时间戳标记
+      if (lastReadMessageId.startsWith('JOIN_AT_')) {
+        const timestamp = lastReadMessageId.substring(8) // 移除 'JOIN_AT_' 前缀
+        const messages = await db.groupMessages
+          .where('groupId')
+          .equals(groupId)
+          .sortBy('createdAt')
+
+        // 统计该时间戳之后的消息数（排除自己发送的）
+        return messages
+          .filter(m => m.createdAt > timestamp && m.senderId !== currentUserId)
+          .length
+      }
+
       const messages = await db.groupMessages
         .where('groupId')
         .equals(groupId)
@@ -359,6 +373,25 @@ export const messageStorage = {
     } catch (error) {
       console.error('计算群聊未读数失败:', error)
       return 0
+    }
+  },
+
+  /**
+   * 获取群组最新消息 ID
+   * @param groupId 群组 ID
+   * @returns 最新消息 ID，如果没有消息返回 null
+   */
+  async getLatestGroupMessageId(groupId: string): Promise<string | null> {
+    try {
+      const latestMessage = await db.groupMessages
+        .where('groupId')
+        .equals(groupId)
+        .last()
+
+      return latestMessage?.id || null
+    } catch (error) {
+      console.error('获取群组最新消息 ID 失败:', error)
+      return null
     }
   },
 }

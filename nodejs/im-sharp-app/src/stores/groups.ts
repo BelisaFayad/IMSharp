@@ -2,7 +2,8 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { groupsApi } from '@/services'
 import { signalRService } from '@/services'
-import type { Group, GroupMember, User, GroupJoinRequest } from '@/types'
+import { messageStorage } from '@/services/messageStorage'
+import type { Group, GroupMember, GroupJoinRequest } from '@/types'
 
 export const useGroupsStore = defineStore('groups', () => {
   // State
@@ -148,9 +149,52 @@ export const useGroupsStore = defineStore('groups', () => {
     try {
       await groupsApi.join(groupNumber)
       await loadGroups()
+
+      // 找到新加入的群组并初始化已读位置
+      const newGroup = groups.value.find(g => g.groupNumber === groupNumber)
+      if (newGroup) {
+        await initializeGroupReadPosition(newGroup.id)
+      }
     } catch (error) {
       console.error('Join group failed:', error)
       throw error
+    }
+  }
+
+  /**
+   * 初始化群组的已读位置
+   * 在用户加入群组时调用,将加入时刻之前的消息视为已读
+   */
+  async function initializeGroupReadPosition(groupId: string) {
+    try {
+      console.log('[Groups] 初始化群组已读位置:', groupId)
+
+      // 1. 尝试从 IndexedDB 获取最新消息 ID
+      let lastMessageId = await messageStorage.getLatestGroupMessageId(groupId)
+
+      // 2. 如果 IndexedDB 中没有,尝试从 API 获取
+      if (!lastMessageId) {
+        try {
+          const response = await groupsApi.getMessages(groupId, { limit: 1 })
+          if (response.messages && response.messages.length > 0) {
+            lastMessageId = response.messages[0]!.id
+          }
+        } catch (apiError) {
+          console.debug('[Groups] 无法从 API 获取群组消息:', apiError)
+        }
+      }
+
+      // 3. 确定已读位置
+      const readPosition = lastMessageId || `JOIN_AT_${new Date().toISOString()}`
+      console.log('[Groups] 设置已读位置:', { groupId, readPosition })
+
+      // 4. 保存已读位置
+      const { useChatStore } = await import('./chat')
+      const chatStore = useChatStore()
+      await chatStore.saveLastReadPosition(groupId, readPosition)
+    } catch (error) {
+      // 初始化失败不应阻塞加入群组流程
+      console.error('[Groups] 初始化群组已读位置失败:', error)
     }
   }
 
@@ -255,7 +299,7 @@ export const useGroupsStore = defineStore('groups', () => {
     })
 
     // 新成员加入群组
-    signalRService.on('GroupMemberJoined', (member: GroupMember) => {
+    signalRService.on('GroupMemberJoined', async (member: GroupMember) => {
       const members = groupMembers.value.get(member.groupId)
       if (members) {
         if (!members.find(m => m.userId === member.userId)) {
@@ -266,6 +310,14 @@ export const useGroupsStore = defineStore('groups', () => {
       const group = groups.value.find(g => g.id === member.groupId)
       if (group) {
         group.memberCount = (group.memberCount || 0) + 1
+      }
+
+      // 如果是当前用户加入群组,初始化已读位置
+      const { useAuthStore } = await import('./auth')
+      const authStore = useAuthStore()
+      if (member.userId === authStore.user?.id) {
+        console.log('[Groups] 当前用户通过 SignalR 加入群组:', member.groupId)
+        await initializeGroupReadPosition(member.groupId)
       }
     })
 

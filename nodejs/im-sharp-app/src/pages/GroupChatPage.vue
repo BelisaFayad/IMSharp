@@ -33,7 +33,9 @@ const uiStore = useUiStore()
 
 const groupId = route.params.id as string
 const messagesContainer = ref<HTMLElement | null>(null)
+const chatInputBarRef = ref<InstanceType<typeof ChatInputBar> | null>(null)
 const isLoading = ref(true)
+const isSending = ref(false)
 const showAnnouncement = ref(true)
 const showAnnouncementDetail = ref(false)
 
@@ -79,11 +81,19 @@ function handleMemberLeft(gId: string, userId: string) {
 }
 
 async function handleReconnected() {
+  console.log('[GroupChatPage] SignalR 重连，尝试恢复群聊')
   try {
     await signalRService.joinGroup(groupId)
+    console.log('[GroupChatPage] 重连后成功加入群组房间')
+
+    // 加载可能错过的消息
     await chatStore.loadGroupMessages(groupId)
+    console.log('[GroupChatPage] 重连后消息同步完成')
+
+    uiStore.showToast('连接已恢复', 'success')
   } catch (error) {
-    console.error('重连后恢复群聊失败:', error)
+    console.error('[GroupChatPage] 重连后恢复群聊失败:', error)
+    uiStore.showToast('连接恢复失败，请刷新页面', 'error')
   }
 }
 
@@ -104,16 +114,39 @@ onMounted(async () => {
     // 加载群组成员
     await groupsStore.loadGroupMembers(groupId)
 
-    // 加入 SignalR 群组房间
-    await signalRService.joinGroup(groupId)
+    // 加入 SignalR 群组房间（独立错误处理）
+    let joinGroupSuccess = false
+    try {
+      console.log('[GroupChatPage] 尝试加入群组房间:', groupId)
+      await signalRService.joinGroup(groupId)
+      joinGroupSuccess = true
+      console.log('[GroupChatPage] 成功加入群组房间')
+    } catch (joinError) {
+      console.error('[GroupChatPage] 加入群组房间失败:', joinError)
+      // 不抛出异常，继续执行后续步骤
+      uiStore.showToast('无法接收实时消息，正在尝试重连...', 'warning')
 
-    // 加载消息历史
+      // 延迟重试
+      setTimeout(async () => {
+        try {
+          console.log('[GroupChatPage] 重试加入群组房间')
+          await signalRService.joinGroup(groupId)
+          console.log('[GroupChatPage] 重试成功')
+          uiStore.showToast('已恢复实时消息接收', 'success')
+        } catch (retryError) {
+          console.error('[GroupChatPage] 重试失败:', retryError)
+          uiStore.showToast('无法接收实时消息，请刷新页面', 'error')
+        }
+      }, 3000)
+    }
+
+    // 加载消息历史（即使 joinGroup 失败也执行）
     await chatStore.loadGroupMessages(groupId)
 
     // 标记群聊消息为已读（清除未读数）
     chatStore.clearUnreadCount(groupId)
   } catch (error) {
-    console.error('加载群聊失败:', error)
+    console.error('[GroupChatPage] 加载群聊失败:', error)
     uiStore.showToast('加载群聊失败', 'error')
   } finally {
     isLoading.value = false
@@ -152,11 +185,17 @@ async function handleSendText(content: string) {
     uiStore.showToast('消息内容包含不允许的脚本内容', 'error')
     return
   }
+
+  isSending.value = true
   try {
     await chatStore.sendGroupMessage(groupId, content)
+    // 发送成功后清空输入框
+    chatInputBarRef.value?.clearInput()
   } catch (error) {
     console.error('发送消息失败:', error)
     uiStore.showToast('发送消息失败', 'error')
+  } finally {
+    isSending.value = false
   }
 }
 
@@ -447,6 +486,6 @@ function getSenderInfo(message: GroupMessage) {
       </div>
     </main>
 
-    <ChatInputBar @send-text="handleSendText" @send-image="handleSendImage" />
+    <ChatInputBar ref="chatInputBarRef" :is-sending="isSending" @send-text="handleSendText" @send-image="handleSendImage" />
   </div>
 </template>

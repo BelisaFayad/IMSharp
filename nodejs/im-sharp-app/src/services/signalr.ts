@@ -284,18 +284,34 @@ class SignalRService {
   }
 
   // 等待连接就绪（最多等待 10 秒）
-  private waitForConnection(timeoutMs = 10000): Promise<void> {
+  private async waitForConnection(timeoutMs = 10000): Promise<void> {
+    console.log('[SignalR] waitForConnection 开始，当前状态:', this.connectionState)
+
     if (this.connectionState === ('Connected' as SignalRConnectionState)) {
+      console.log('[SignalR] 连接已就绪')
       return Promise.resolve()
     }
+
     return new Promise((resolve, reject) => {
       const deadline = Date.now() + timeoutMs
+      let waited = 0
+
       const check = () => {
         if (this.connectionState === ('Connected' as SignalRConnectionState)) {
+          console.log('[SignalR] waitForConnection 完成，总等待时间:', waited, 'ms')
           resolve()
         } else if (Date.now() >= deadline) {
-          reject(new Error('SignalR connection timeout'))
+          const error = new Error(`SignalR connection timeout after ${timeoutMs}ms, current state: ${this.connectionState}`)
+          console.error('[SignalR] waitForConnection 超时:', {
+            waited: timeoutMs,
+            connectionState: this.connectionState
+          })
+          reject(error)
         } else {
+          waited += 200
+          if (waited % 1000 === 0) {
+            console.log(`[SignalR] 等待连接中... ${waited}ms, 状态: ${this.connectionState}`)
+          }
           setTimeout(check, 200)
         }
       }
@@ -305,8 +321,24 @@ class SignalRService {
 
   // 加入群组房间
   async joinGroup(groupId: string): Promise<void> {
-    await this.waitForConnection()
-    await this.connection!.invoke('JoinGroup', groupId)
+    console.log('[SignalR] joinGroup 开始:', {
+      groupId,
+      connectionState: this.connectionState
+    })
+
+    try {
+      await this.waitForConnection()
+      console.log('[SignalR] 连接就绪，调用 JoinGroup')
+      await this.connection!.invoke('JoinGroup', groupId)
+      console.log('[SignalR] JoinGroup 调用成功')
+    } catch (error) {
+      console.error('[SignalR] joinGroup 失败:', {
+        groupId,
+        error,
+        connectionState: this.connectionState
+      })
+      throw error
+    }
   }
 
   // 离开群组房间

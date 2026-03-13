@@ -1064,6 +1064,7 @@ export const useChatStore = defineStore('chat', () => {
     setCurrentUserId,
     setCurrentChatId,
     loadLastReadPositions,
+    saveLastReadPosition,
     clearConversationMessages,
     syncMessagesFromDB,
     clearLocalCache,
