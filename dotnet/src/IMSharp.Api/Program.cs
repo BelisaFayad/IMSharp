@@ -60,6 +60,9 @@ builder.Services.AddSingleton<IStorageProvider, LocalStorageProvider>();
 // Configure MessageCleanup Options
 builder.Services.Configure<MessageCleanupOptions>(builder.Configuration.GetSection("MessageCleanup"));
 
+// Configure DatabaseMigration Options
+builder.Services.Configure<DatabaseMigrationOptions>(builder.Configuration.GetSection("DatabaseMigration"));
+
 // Register Background Services
 builder.Services.AddHostedService<MessageCleanupService>();
 
@@ -146,6 +149,9 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+// 自动执行数据库迁移
+await MigrateDatabaseAsync(app);
+
 // Configure middleware pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -165,3 +171,61 @@ app.MapHub<ChatHub>("/hubs/chat");
 app.MapControllers();
 
 app.Run();
+
+static async Task MigrateDatabaseAsync(WebApplication app)
+{
+    var migrationOptions = app.Configuration.GetSection("DatabaseMigration").Get<DatabaseMigrationOptions>()
+        ?? new DatabaseMigrationOptions();
+
+    if (!migrationOptions.AutoMigrateOnStartup)
+    {
+        app.Logger.LogInformation("数据库自动迁移已禁用");
+        return;
+    }
+
+    using var scope = app.Services.CreateScope();
+    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        logger.LogInformation("开始检查数据库迁移状态");
+
+        var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+        var pendingCount = pendingMigrations.Count();
+
+        if (pendingCount == 0)
+        {
+            logger.LogInformation("数据库已是最新版本,无需迁移");
+            return;
+        }
+
+        logger.LogInformation("检测到 {Count} 个待应用的迁移: {Migrations}",
+            pendingCount, string.Join(", ", pendingMigrations));
+
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+
+        // 设置超时时间
+        if (migrationOptions.TimeoutSeconds > 0)
+        {
+            context.Database.SetCommandTimeout(TimeSpan.FromSeconds(migrationOptions.TimeoutSeconds));
+        }
+
+        // 执行迁移
+        await context.Database.MigrateAsync();
+
+        stopwatch.Stop();
+        logger.LogInformation("数据库迁移成功完成,耗时: {Elapsed}ms", stopwatch.ElapsedMilliseconds);
+    }
+    catch (Exception ex)
+    {
+        logger.LogCritical(ex, "数据库迁移失败: {Message}", ex.Message);
+
+        if (migrationOptions.StopApplicationOnFailure)
+        {
+            throw new InvalidOperationException("数据库迁移失败,应用程序将终止。请检查数据库连接和迁移脚本。", ex);
+        }
+
+        logger.LogWarning("数据库迁移失败,但应用程序将继续启动");
+    }
+}
