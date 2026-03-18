@@ -13,6 +13,7 @@ export interface ToastState {
 export const useUiStore = defineStore('ui', () => {
   // State - 默认为亮色模式
   const isDark = ref(false)
+  const showFloatingButton = ref(true)
   const signalRState = ref<SignalRConnectionState>(SignalRConnectionState.Disconnected)
   const isLoading = ref(false)
   const loadingMessage = ref('')
@@ -37,6 +38,11 @@ export const useUiStore = defineStore('ui', () => {
     isDark.value = value
     localStorage.setItem('darkMode', String(value))
     updateDarkModeClass()
+  }
+
+  function toggleFloatingButton() {
+    showFloatingButton.value = !showFloatingButton.value
+    localStorage.setItem('floatingButton', String(showFloatingButton.value))
   }
 
   function updateDarkModeClass() {
@@ -94,6 +100,12 @@ export const useUiStore = defineStore('ui', () => {
       isDark.value = savedMode === 'true'
     }
     updateDarkModeClass()
+
+    // 从 localStorage 读取浮动按钮设置
+    const savedFloatingButton = localStorage.getItem('floatingButton')
+    if (savedFloatingButton !== null) {
+      showFloatingButton.value = savedFloatingButton === 'true'
+    }
   }
 
   function setSignalRState(state: SignalRConnectionState) {
@@ -102,12 +114,14 @@ export const useUiStore = defineStore('ui', () => {
 
   return {
     isDark,
+    showFloatingButton,
     signalRState,
     isLoading,
     loadingMessage,
     toast,
     toggleDarkMode,
     setDarkMode,
+    toggleFloatingButton,
     setSignalRState,
     showLoading,
     hideLoading,

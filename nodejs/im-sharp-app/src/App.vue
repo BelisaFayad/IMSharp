@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useAuthStore, useUiStore, useChatStore, useContactsStore, useGroupsStore } from '@/stores'
-import { Toast } from '@/components'
+import { Toast, FloatingActionButton } from '@/components'
 import { signalRService } from '@/services/signalr'
 import { SignalRConnectionState } from '@/types'
 
@@ -67,6 +67,9 @@ onMounted(async () => {
       :type="uiStore.toast.type"
       @close="uiStore.hideToast"
     />
+
+    <!-- Floating Action Button -->
+    <FloatingActionButton v-if="uiStore.showFloatingButton" />
   </div>
 </template>
 

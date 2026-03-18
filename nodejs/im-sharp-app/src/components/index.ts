@@ -2,6 +2,7 @@
 export { default as BottomNav } from './BottomNav.vue'
 export { default as Header } from './Header.vue'
 export { default as TabBar } from './TabBar.vue'
+export { default as FloatingActionButton } from './FloatingActionButton.vue'
 
 // 对话框和弹窗组件
 export { default as ConfirmationModal } from './ConfirmationModal.vue'

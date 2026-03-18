@@ -94,6 +94,11 @@ onMounted(() => {
           <Toggle :model-value="uiStore.isDark" @update:model-value="uiStore.setDarkMode" />
         </div>
 
+        <div class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-xl">
+          <span class="text-slate-900 dark:text-white font-medium">外部链接按钮</span>
+          <Toggle :model-value="uiStore.showFloatingButton" @update:model-value="uiStore.toggleFloatingButton" />
+        </div>
+
         <div
           class="w-full flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-xl cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
           @click="showClearCacheModal = true"

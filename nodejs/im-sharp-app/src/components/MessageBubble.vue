@@ -2,6 +2,11 @@
 import { ref } from 'vue'
 import ImageViewer from './ImageViewer.vue'
 
+// 禁用自动继承属性
+defineOptions({
+  inheritAttrs: false
+})
+
 interface Props {
   content: string
   type?: 'Text' | 'Image' | 'File' | 'Audio' | 'Video'
@@ -61,7 +66,7 @@ function handleCloseViewer() {
 </script>
 
 <template>
-  <div :class="['flex gap-3 mb-4', isSelf ? 'flex-row-reverse' : 'flex-row']">
+  <div v-bind="$attrs" :class="['flex gap-3 mb-4', isSelf ? 'flex-row-reverse' : 'flex-row']">
     <div class="shrink-0">
       <div
         v-if="avatar"

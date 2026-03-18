@@ -25,7 +25,10 @@ const isNumericSearch = computed(() => {
 
 // 过滤群组列表（本地搜索）
 const filteredGroups = computed(() => {
-  if (!searchQuery.value.trim() || isNumericSearch.value) {
+  if (!searchQuery.value.trim()) {
+    return groupsStore.groups
+  }
+  if (isNumericSearch.value) {
     return groupsStore.groups
   }
   const query = searchQuery.value.toLowerCase()
@@ -34,19 +37,25 @@ const filteredGroups = computed(() => {
   )
 })
 
-// 监听搜索输入，如果是纯数字则触发远程搜索
-watch(searchQuery, async (newValue) => {
+// 监听搜索输入清空，清空搜索结果
+watch(searchQuery, (newValue) => {
   if (!newValue.trim()) {
     searchResult.value = null
+  }
+})
+
+// 手动触发搜索
+async function handleSearch() {
+  if (!searchQuery.value.trim()) {
     return
   }
 
   if (isNumericSearch.value) {
-    await performRemoteSearch(parseInt(newValue.trim()))
-  } else {
-    searchResult.value = null
+    // 纯数字：远程搜索
+    await performRemoteSearch(parseInt(searchQuery.value.trim()))
   }
-})
+  // 文字搜索：filteredGroups 会自动重新计算
+}
 
 // 执行远程搜索
 async function performRemoteSearch(groupNumber: number) {
@@ -165,14 +174,23 @@ function handleMyJoinRequestsClick() {
     <Header title="搜索群聊" :show-back="true" @back="router.push('/chats')" right-icon="primary:person_add" @right="router.push('/contacts/add')" />
 
     <div class="px-4 py-3 bg-white dark:bg-slate-900">
-      <div class="flex w-full items-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 px-4 py-2.5">
+      <div class="flex w-full items-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 px-4 h-11">
         <span class="material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl">search</span>
         <input
           v-model="searchQuery"
+          @keyup.enter="handleSearch"
           class="flex w-full border-none bg-transparent focus:outline-0 focus:ring-0 text-base placeholder:text-slate-500 dark:placeholder:text-slate-400 text-slate-900 dark:text-white"
           :placeholder="isNumericSearch ? '输入群号搜索...' : '搜索群组...'"
           type="text"
         />
+        <button
+          v-if="searchQuery.trim()"
+          @click="handleSearch"
+          class="ml-2 size-9 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors shrink-0 shadow-sm flex items-center justify-center"
+          type="button"
+        >
+          <span class="material-symbols-outlined text-xl">arrow_forward</span>
+        </button>
       </div>
       <p class="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
         输入群号搜索公开群组

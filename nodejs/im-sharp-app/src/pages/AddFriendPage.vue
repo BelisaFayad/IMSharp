@@ -71,7 +71,7 @@ function hasSentRequest(userId: string): boolean {
     <Header title="添加好友" :show-back="true" @back="router.push('/contacts')" right-icon="primary:group_add" @right="router.push('/groups')" />
 
     <div class="px-4 py-3 bg-white dark:bg-slate-900">
-      <div class="flex w-full items-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 px-4 py-2.5">
+      <div class="flex w-full items-center rounded-xl bg-slate-200/50 dark:bg-slate-800/50 px-4 h-11">
         <span class="material-symbols-outlined text-slate-500 dark:text-slate-400 text-xl">search</span>
         <input
           v-model="searchQuery"
@@ -80,6 +80,14 @@ function hasSentRequest(userId: string): boolean {
           placeholder="搜索账号"
           type="text"
         />
+        <button
+          v-if="searchQuery.trim()"
+          @click="handleSearch"
+          class="ml-2 size-9 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors shrink-0 shadow-sm flex items-center justify-center"
+          type="button"
+        >
+          <span class="material-symbols-outlined text-xl">arrow_forward</span>
+        </button>
       </div>
       <p class="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
         我的账号: <span class="text-primary font-medium">{{ authStore.user?.username || 'N/A' }}</span>
