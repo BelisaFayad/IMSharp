@@ -18,6 +18,8 @@
         panelWidth: '360px',
         panelHeight: '520px',
         position: 'bottom-right',
+        bottom: 124,
+        right: 24,
       }, options);
 
       this._injectStyles();
@@ -30,7 +32,7 @@
     _injectStyles: function () {
       var style = document.createElement('style');
       style.textContent = [
-        '#imsharp-widget-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:12px;}',
+        '#imsharp-widget-container{position:fixed;bottom:124px;right:24px;z-index:9999;display:flex;flex-direction:column;align-items:flex-end;gap:12px;}',
         '#imsharp-chat-panel{width:var(--imsharp-panel-width,360px);height:var(--imsharp-panel-height,520px);border-radius:16px;box-shadow:0 8px 32px rgba(0,0,0,0.18);overflow:hidden;background:#fff;display:none;flex-direction:column;transform:scale(0.95) translateY(8px);opacity:0;transition:transform 0.2s ease,opacity 0.2s ease;}',
         '#imsharp-chat-panel.open{display:flex;transform:scale(1) translateY(0);opacity:1;}',
         '#imsharp-chat-panel iframe{width:100%;height:100%;border:none;display:block;}',
@@ -55,6 +57,8 @@
       container.id = 'imsharp-widget-container';
       container.style.setProperty('--imsharp-panel-width', this._options.panelWidth);
       container.style.setProperty('--imsharp-panel-height', this._options.panelHeight);
+      container.style.bottom = this._options.bottom + 'px';
+      container.style.right = this._options.right + 'px';
 
       // 聊天面板
       var panel = document.createElement('div');

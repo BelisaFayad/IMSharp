@@ -9,6 +9,9 @@ class SignalRService {
   private maxReconnectAttempts = 99
   private stateChangeCallback: ((state: SignalRConnectionState) => void) | null = null
   private currentToken: string = ''
+  private isReconnecting: boolean = false
+  private visibilityChangeHandler: (() => void) | null = null
+  private onlineHandler: (() => void) | null = null
 
   onStateChange(callback: (state: SignalRConnectionState) => void) {
     this.stateChangeCallback = callback
@@ -22,8 +25,17 @@ class SignalRService {
   // 连接到 SignalR Hub
   async connect(token: string): Promise<void> {
     if (this.connection) {
-      console.warn('SignalR connection already exists')
-      return
+      const state = this.connection.state
+      if (state === signalR.HubConnectionState.Connected || state === signalR.HubConnectionState.Connecting) {
+        return
+      }
+      // 已断开，清理旧连接后重建
+      try {
+        await this.connection.stop()
+      } catch {
+        // 忽略 stop 错误
+      }
+      this.connection = null
     }
 
     this.currentToken = token
@@ -73,6 +85,7 @@ class SignalRService {
       await this.connection.start()
       this.notifyStateChange('Connected' as SignalRConnectionState)
       console.log('SignalR connected successfully')
+      this.setupAppEventListeners()
     } catch (error) {
       this.notifyStateChange('Disconnected' as SignalRConnectionState)
       console.error('SignalR connection failed:', error)
@@ -91,6 +104,8 @@ class SignalRService {
       return
     }
 
+    this.cleanupAppEventListeners()
+    this.isReconnecting = false
     this.notifyStateChange('Disconnecting' as SignalRConnectionState)
 
     try {
@@ -105,7 +120,59 @@ class SignalRService {
     }
   }
 
-  // 设置事件监听器
+  // 页面可见性/网络恢复时检查并重连
+  private async reconnectIfNeeded(): Promise<void> {
+    if (this.isReconnecting) return
+    if (!this.currentToken) return
+
+    const state = this.connection?.state
+    if (state === signalR.HubConnectionState.Reconnecting) return
+    if (state === signalR.HubConnectionState.Connected) return
+
+    this.isReconnecting = true
+    try {
+      console.log('[SignalR] 检测到断线，尝试重连...')
+      await this.connect(this.currentToken)
+    } catch (error) {
+      console.error('[SignalR] 重连失败:', error)
+    } finally {
+      this.isReconnecting = false
+    }
+  }
+
+  // 注册页面可见性和网络恢复事件
+  private setupAppEventListeners(): void {
+    this.cleanupAppEventListeners()
+
+    this.visibilityChangeHandler = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[SignalR] 页面重新可见，检查连接状态')
+        this.reconnectIfNeeded()
+      }
+    }
+
+    this.onlineHandler = () => {
+      console.log('[SignalR] 网络恢复，检查连接状态')
+      this.reconnectIfNeeded()
+    }
+
+    document.addEventListener('visibilitychange', this.visibilityChangeHandler)
+    window.addEventListener('online', this.onlineHandler)
+  }
+
+  // 移除页面可见性和网络恢复事件
+  private cleanupAppEventListeners(): void {
+    if (this.visibilityChangeHandler) {
+      document.removeEventListener('visibilitychange', this.visibilityChangeHandler)
+      this.visibilityChangeHandler = null
+    }
+    if (this.onlineHandler) {
+      window.removeEventListener('online', this.onlineHandler)
+      this.onlineHandler = null
+    }
+  }
+
+  // 设置 SignalR 事件监听器
   private setupEventListeners(): void {
     if (!this.connection) return
 
