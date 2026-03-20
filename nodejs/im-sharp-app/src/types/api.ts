@@ -123,8 +123,8 @@ export interface GetGroupMessagesResponse {
   prevCursor: string | null
 }
 
-export interface InviteGroupMembersRequest {
-  userIds: string[]
+export interface AddGroupMemberRequest {
+  userId: string
 }
 
 export interface UpdateGroupRequest {

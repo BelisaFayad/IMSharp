@@ -28,7 +28,7 @@ const members = computed(() => {
 
 // 获取群组成员 ID 集合
 const memberIds = computed(() => {
-  return new Set(members.value.map(m => m.id))
+  return new Set(members.value.map(m => m.userId))
 })
 
 // 可邀请的好友列表（排除已在群组中的好友）
@@ -100,7 +100,7 @@ async function handleInviteMembers() {
   try {
     await groupsStore.inviteMembers(groupId, Array.from(selectedMembers.value))
     uiStore.showToast('邀请成功', 'success')
-    router.push(`/groups/${groupId}/settings`)
+    router.push(`/groups/${groupId}`)
   } catch (error) {
     console.error('邀请成员失败:', error)
     uiStore.showToast('邀请成员失败', 'error')
@@ -112,7 +112,7 @@ async function handleInviteMembers() {
 
 <template>
   <div class="flex flex-col h-screen bg-slate-50 dark:bg-slate-900">
-    <Header title="邀请成员" :show-back="true" @back="router.push(`/groups/${groupId}/settings`)" />
+    <Header title="邀请成员" :show-back="true" @back="router.push(`/groups/${groupId}`)" />
 
     <!-- 加载中 -->
     <div v-if="isLoading" class="flex-1 flex items-center justify-center">

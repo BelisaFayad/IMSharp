@@ -50,9 +50,10 @@ const allItems = computed(() => {
 
 function handleMemberJoined(member: GroupMember) {
   if (member.groupId !== groupId) return
+  const userId = member.userId || member.user?.id || 'unknown'
   const name = member.user?.displayName || member.user?.username || '新成员'
   systemEvents.value.push({
-    id: `join-${member.userId}-${Date.now()}`,
+    id: `join-${userId}-${Date.now()}`,
     type: 'system',
     text: `${name} 加入了群聊`,
     createdAt: new Date().toISOString(),

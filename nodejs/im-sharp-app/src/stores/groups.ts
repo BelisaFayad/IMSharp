@@ -5,6 +5,13 @@ import { signalRService } from '@/services'
 import { messageStorage } from '@/services/messageStorage'
 import type { Group, GroupMember, GroupJoinRequest } from '@/types'
 
+function normalizeGroupMember(member: GroupMember): GroupMember {
+  return {
+    ...member,
+    userId: member.userId ?? member.user?.id ?? '',
+  }
+}
+
 export const useGroupsStore = defineStore('groups', () => {
   // State
   const groups = ref<Group[]>([])
@@ -34,16 +41,13 @@ export const useGroupsStore = defineStore('groups', () => {
   async function loadGroupMembers(groupId: string) {
     try {
       const detail = await groupsApi.getDetail(groupId)
-      // 后端 GroupMemberDto 没有 userId 字段，从 user.id 补充
-      const members = detail.members.map((m: any) => ({
-        ...m,
-        userId: m.userId ?? m.user?.id,
-      }))
+      const members = detail.members.map((member) => normalizeGroupMember(member))
       groupMembers.value.set(groupId, members)
-      // 同时将 announcement 合并到 groups 数组
+
       const index = groups.value.findIndex(g => g.id === groupId)
       if (index >= 0) {
         groups.value[index]!.announcement = detail.announcement
+        groups.value[index]!.memberCount = members.length
       }
       return members
     } catch (error) {
@@ -91,7 +95,15 @@ export const useGroupsStore = defineStore('groups', () => {
 
   async function inviteMembers(groupId: string, userIds: string[]) {
     try {
-      await groupsApi.inviteMembers(groupId, { userIds })
+      for (const userId of userIds) {
+        try {
+          await groupsApi.inviteMembers(groupId, { userId })
+        } catch (error) {
+          const inviteError = new Error(`邀请用户 ${userId} 失败`)
+          ;(inviteError as Error & { cause?: unknown }).cause = error
+          throw inviteError
+        }
+      }
       await loadGroupMembers(groupId)
     } catch (error) {
       console.error('Invite members failed:', error)
@@ -104,10 +116,13 @@ export const useGroupsStore = defineStore('groups', () => {
       await groupsApi.removeMember(groupId, userId)
       const members = groupMembers.value.get(groupId)
       if (members) {
-        groupMembers.value.set(
-          groupId,
-          members.filter((m) => m.id !== userId)
-        )
+        const updatedMembers = members.filter((m) => m.userId !== userId)
+        groupMembers.value.set(groupId, updatedMembers)
+
+        const group = groups.value.find((g) => g.id === groupId)
+        if (group) {
+          group.memberCount = updatedMembers.length
+        }
       }
     } catch (error) {
       console.error('Remove member failed:', error)
@@ -300,24 +315,25 @@ export const useGroupsStore = defineStore('groups', () => {
 
     // 新成员加入群组
     signalRService.on('GroupMemberJoined', async (member: GroupMember) => {
-      const members = groupMembers.value.get(member.groupId)
+      const normalizedMember = normalizeGroupMember(member)
+      const members = groupMembers.value.get(normalizedMember.groupId)
       if (members) {
-        if (!members.find(m => m.userId === member.userId)) {
-          members.push(member)
+        if (!members.find(m => m.userId === normalizedMember.userId)) {
+          members.push(normalizedMember)
         }
       }
       // 同步更新群组人数
-      const group = groups.value.find(g => g.id === member.groupId)
+      const group = groups.value.find(g => g.id === normalizedMember.groupId)
       if (group) {
-        group.memberCount = (group.memberCount || 0) + 1
+        group.memberCount = members?.length ?? (group.memberCount || 0) + 1
       }
 
       // 如果是当前用户加入群组,初始化已读位置
       const { useAuthStore } = await import('./auth')
       const authStore = useAuthStore()
-      if (member.userId === authStore.user?.id) {
-        console.log('[Groups] 当前用户通过 SignalR 加入群组:', member.groupId)
-        await initializeGroupReadPosition(member.groupId)
+      if (normalizedMember.userId === authStore.user?.id) {
+        console.log('[Groups] 当前用户通过 SignalR 加入群组:', normalizedMember.groupId)
+        await initializeGroupReadPosition(normalizedMember.groupId)
       }
     })
 

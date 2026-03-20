@@ -68,9 +68,10 @@ const messages = computed(() => {
 
 function handleMemberJoined(member: import('@/types').GroupMember) {
   if (member.groupId !== groupId) return
+  const userId = member.userId || member.user?.id || 'unknown'
   const name = member.user?.displayName || member.user?.username || '新成员'
   systemEvents.value.push({
-    id: `join-${member.userId}-${Date.now()}`,
+    id: `join-${userId}-${Date.now()}`,
     type: 'system',
     text: `${name} 加入了群聊`,
     createdAt: new Date().toISOString(),
@@ -394,7 +395,7 @@ function handleKeydown(e: KeyboardEvent) {
         <!-- 正常模式：显示群组设置菜单按钮 -->
         <button
           v-else
-          @click="router.push(`/groups/${groupId}/settings`)"
+          @click="router.push(`/groups/${groupId}`)"
           class="flex items-center justify-center p-1 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full transition-colors"
         >
           <span class="material-symbols-outlined text-xl text-slate-900 dark:text-white">more_horiz</span>

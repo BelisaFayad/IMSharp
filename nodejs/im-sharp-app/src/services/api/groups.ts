@@ -6,7 +6,7 @@ import type {
   GroupDetailResponse,
   SendGroupMessageRequest,
   GetGroupMessagesResponse,
-  InviteGroupMembersRequest,
+  AddGroupMemberRequest,
   UpdateGroupRequest,
   SearchGroupResponse,
   JoinGroupRequest,
@@ -76,7 +76,7 @@ export const groupsApi = {
   },
 
   // 邀请成员
-  async inviteMembers(id: string, data: InviteGroupMembersRequest): Promise<void> {
+  async inviteMembers(id: string, data: AddGroupMemberRequest): Promise<void> {
     await http.post(`/api/groups/${id}/members`, data)
   },
 
