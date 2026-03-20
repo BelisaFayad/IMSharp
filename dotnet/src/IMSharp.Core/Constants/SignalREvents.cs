@@ -73,6 +73,11 @@ public static class SignalREvents
         public const string GroupReceived = "ReceiveGroupMessage";
 
         /// <summary>
+        /// 消息已送达
+        /// </summary>
+        public const string Delivered = "MessageDelivered";
+
+        /// <summary>
         /// 消息已发送
         /// </summary>
         public const string Sent = "MessageSent";

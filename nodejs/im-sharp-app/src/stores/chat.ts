@@ -27,6 +27,7 @@ export const useChatStore = defineStore('chat', () => {
   const groupMessages = ref<Map<string, GroupMessage[]>>(new Map())
   const unreadCounts = reactive<Record<string, number>>({})
   const typingUsers = ref<Map<string, boolean>>(new Map())
+  const typingTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
   const currentUserId = ref<string | null>(null)
   const currentChatId = ref<string | null>(null) // 当前正在查看的聊天 ID
 
@@ -717,7 +718,12 @@ export const useChatStore = defineStore('chat', () => {
 
   async function markAllAsRead(friendId: string) {
     try {
-      await messagesApi.markAllAsRead(friendId)
+      try {
+        await signalRService.markAllAsRead(friendId)
+      } catch (signalRError) {
+        console.warn('SignalR 标记全部已读失败，回退到 HTTP:', signalRError)
+        await messagesApi.markAllAsRead(friendId)
+      }
       unreadCounts[friendId] = 0
       saveUnreadCounts()
 
@@ -731,6 +737,37 @@ export const useChatStore = defineStore('chat', () => {
       console.error('Mark all as read failed:', error)
       throw error
     }
+  }
+
+  function updatePrivateMessageStatus(
+    predicate: (message: PrivateMessage) => boolean,
+    updater: (message: PrivateMessage) => void
+  ) {
+    for (const [, messages] of privateMessages.value) {
+      for (const message of messages) {
+        if (!predicate(message)) {
+          continue
+        }
+
+        updater(message)
+        messageStorage.savePrivateMessage(message).catch(err => {
+          console.error('更新私聊消息状态失败:', err)
+        })
+      }
+    }
+  }
+
+  function markConversationMessagesAsRead(friendId: string, readAt: string) {
+    updatePrivateMessageStatus(
+      (message) =>
+        message.senderId === currentUserId.value &&
+        message.receiverId === friendId &&
+        message.status !== MessageStatus.Read,
+      (message) => {
+        message.status = MessageStatus.Read
+        message.readAt = readAt
+      }
+    )
   }
 
   async function addPrivateMessage(message: PrivateMessage) {
@@ -881,13 +918,21 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function setTypingStatus(userId: string, isTyping: boolean) {
+    const existingTimeout = typingTimeouts.get(userId)
+    if (existingTimeout) {
+      clearTimeout(existingTimeout)
+      typingTimeouts.delete(userId)
+    }
+
     typingUsers.value.set(userId, isTyping)
 
     // 3 秒后自动清除正在输入状态
     if (isTyping) {
-      setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         typingUsers.value.set(userId, false)
+        typingTimeouts.delete(userId)
       }, 3000)
+      typingTimeouts.set(userId, timeoutId)
     }
   }
 
@@ -980,17 +1025,31 @@ export const useChatStore = defineStore('chat', () => {
       setTypingStatus(userId, isTyping)
     })
 
+    // 消息已送达
+    signalRService.on('MessageDelivered', (messageId: string, deliveredAt: string) => {
+      updatePrivateMessageStatus(
+        (message) => message.id === messageId && message.status === MessageStatus.Sent,
+        (message) => {
+          message.status = MessageStatus.Delivered
+          message.deliveredAt = deliveredAt
+        }
+      )
+    })
+
     // 消息已读
     signalRService.on('MessageRead', (messageId: string, readAt: string) => {
-      // 更新消息状态
-      for (const [, messages] of privateMessages.value) {
-        const message = messages.find((m) => m.id === messageId)
-        if (message) {
+      updatePrivateMessageStatus(
+        (message) => message.id === messageId,
+        (message) => {
           message.status = MessageStatus.Read
           message.readAt = readAt
-          break
         }
-      }
+      )
+    })
+
+    // 会话内全部消息已读
+    signalRService.on('AllMessagesRead', (userId: string) => {
+      markConversationMessagesAsRead(userId, new Date().toISOString())
     })
 
     // 好友关系被删除

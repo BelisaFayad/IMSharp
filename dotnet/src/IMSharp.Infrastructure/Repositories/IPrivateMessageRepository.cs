@@ -10,9 +10,9 @@ public interface IPrivateMessageRepository
         Guid userId, Guid friendId, Guid? before, Guid? after, int limit, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<int> GetUnreadCountWithUserAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
-    Task MarkAsDeliveredAsync(Guid messageId, CancellationToken cancellationToken = default);
-    Task MarkAsReadAsync(Guid messageId, CancellationToken cancellationToken = default);
-    Task MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
+    Task<DateTimeOffset?> MarkAsDeliveredAsync(Guid messageId, CancellationToken cancellationToken = default);
+    Task<DateTimeOffset?> MarkAsReadAsync(Guid messageId, CancellationToken cancellationToken = default);
+    Task<DateTimeOffset?> MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
     Task DeleteConversationAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default);
     Task<int> DeleteOldMessagesAsync(DateTimeOffset before, CancellationToken cancellationToken = default);
 }

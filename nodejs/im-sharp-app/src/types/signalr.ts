@@ -1,4 +1,4 @@
-import type { PrivateMessage, GroupMessage, User } from './models'
+import type { PrivateMessage, GroupMessage } from './models'
 
 // SignalR 事件接口
 export interface SignalREvents {
@@ -26,11 +26,11 @@ export interface SignalREvents {
   // 消息已读
   MessageRead: (messageId: string, readAt: string) => void
 
+  // 会话内所有消息已读
+  AllMessagesRead: (userId: string) => void
+
   // 好友请求通知
   FriendRequestReceived: (senderId: string) => void
-
-  // 好友请求被接受
-  FriendRequestAccepted: (userId: string) => void
 
   // 好友请求被处理（接受或拒绝）
   FriendRequestProcessed: (requestId: string, accepted: boolean) => void
@@ -41,9 +41,6 @@ export interface SignalREvents {
   // 好友关系被删除
   FriendDeleted: (data: { userId: string }) => void
 
-  // 群组邀请通知
-  GroupInvitationReceived: (groupId: string) => void
-
   // 新成员加入群组
   GroupMemberJoined: (member: import('./models').GroupMember) => void
 
@@ -52,9 +49,6 @@ export interface SignalREvents {
 
   // 群组信息更新
   GroupUpdated: (groupId: string) => void
-
-  // 系统通知
-  SystemNotification: (message: string) => void
 
   // 重连成功
   Reconnected: (connectionId: string | undefined) => void
@@ -71,8 +65,11 @@ export interface SignalRMethods {
   // 标记消息为已读
   MarkMessageAsRead: (messageId: string) => Promise<void>
 
+  // 标记某个会话的所有消息为已读
+  MarkAllAsRead: (friendId: string) => Promise<void>
+
   // 发送正在输入状态
-  SendTypingStatus: (receiverId: string, isTyping: boolean) => Promise<void>
+  SendTypingStatus: (receiverId: string) => Promise<void>
 
   // 加入群组房间
   JoinGroup: (groupId: string) => Promise<void>

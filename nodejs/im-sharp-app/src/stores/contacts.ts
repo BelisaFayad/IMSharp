@@ -142,11 +142,6 @@ export const useContactsStore = defineStore('contacts', () => {
       loadReceivedRequests()
     })
 
-    // 好友请求被接受
-    signalRService.on('FriendRequestAccepted', () => {
-      loadFriends()
-    })
-
     // 好友请求被处理
     signalRService.on('FriendRequestProcessed', () => {
       loadSentRequests()

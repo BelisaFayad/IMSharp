@@ -178,8 +178,9 @@ public class CoreServiceTests
         var friendRepository = new FriendRepository(context);
         var service = new PrivateMessageService(messageRepository, userRepository, friendRepository);
 
-        var senderId = await service.MarkAsReadAndGetSenderAsync(receiver.Id, message.Id);
+        var (senderId, readAt) = await service.MarkAsReadAndGetSenderAsync(receiver.Id, message.Id);
         senderId.Should().Be(sender.Id);
+        readAt.Should().NotBe(default);
 
         var updated = await messageRepository.GetByIdAsync(message.Id);
         updated!.Status.Should().Be(MessageStatus.Read);

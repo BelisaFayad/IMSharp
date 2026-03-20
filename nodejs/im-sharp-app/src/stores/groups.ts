@@ -1,9 +1,9 @@
-import { ref, computed } from 'vue'
-import { defineStore } from 'pinia'
-import { groupsApi } from '@/services'
-import { signalRService } from '@/services'
-import { messageStorage } from '@/services/messageStorage'
-import type { Group, GroupMember, GroupJoinRequest } from '@/types'
+import {ref, computed} from 'vue'
+import {defineStore} from 'pinia'
+import {groupsApi} from '@/services'
+import {signalRService} from '@/services'
+import {messageStorage} from '@/services/messageStorage'
+import type {Group, GroupMember, GroupJoinRequest} from '@/types'
 
 function normalizeGroupMember(member: GroupMember): GroupMember {
   return {
@@ -79,7 +79,12 @@ export const useGroupsStore = defineStore('groups', () => {
     }
   }
 
-  async function updateGroup(groupId: string, data: { name?: string; avatar?: string; description?: string; isPublic?: boolean }) {
+  async function updateGroup(groupId: string, data: {
+    name?: string;
+    avatar?: string;
+    description?: string;
+    isPublic?: boolean
+  }) {
     try {
       const group = await groupsApi.update(groupId, data)
       const index = groups.value.findIndex((g) => g.id === groupId)
@@ -97,7 +102,7 @@ export const useGroupsStore = defineStore('groups', () => {
     try {
       for (const userId of userIds) {
         try {
-          await groupsApi.inviteMembers(groupId, { userId })
+          await groupsApi.inviteMembers(groupId, {userId})
         } catch (error) {
           const inviteError = new Error(`邀请用户 ${userId} 失败`)
           ;(inviteError as Error & { cause?: unknown }).cause = error
@@ -190,7 +195,7 @@ export const useGroupsStore = defineStore('groups', () => {
       // 2. 如果 IndexedDB 中没有,尝试从 API 获取
       if (!lastMessageId) {
         try {
-          const response = await groupsApi.getMessages(groupId, { limit: 1 })
+          const response = await groupsApi.getMessages(groupId, {limit: 1})
           if (response.messages && response.messages.length > 0) {
             lastMessageId = response.messages[0]!.id
           }
@@ -201,10 +206,10 @@ export const useGroupsStore = defineStore('groups', () => {
 
       // 3. 确定已读位置
       const readPosition = lastMessageId || `JOIN_AT_${new Date().toISOString()}`
-      console.log('[Groups] 设置已读位置:', { groupId, readPosition })
+      console.log('[Groups] 设置已读位置:', {groupId, readPosition})
 
       // 4. 保存已读位置
-      const { useChatStore } = await import('./chat')
+      const {useChatStore} = await import('./chat')
       const chatStore = useChatStore()
       await chatStore.saveLastReadPosition(groupId, readPosition)
     } catch (error) {
@@ -215,7 +220,7 @@ export const useGroupsStore = defineStore('groups', () => {
 
   async function sendJoinRequest(groupNumber: number, message?: string) {
     try {
-      await groupsApi.sendJoinRequest({ groupNumber, message })
+      await groupsApi.sendJoinRequest({groupNumber, message})
     } catch (error) {
       console.error('Send join request failed:', error)
       throw error
@@ -238,7 +243,7 @@ export const useGroupsStore = defineStore('groups', () => {
   async function loadAllPendingJoinRequests() {
     try {
       // 获取当前用户 ID
-      const { useAuthStore } = await import('./auth')
+      const {useAuthStore} = await import('./auth')
       const authStore = useAuthStore()
       const currentUserId = authStore.user?.id
 
@@ -280,7 +285,7 @@ export const useGroupsStore = defineStore('groups', () => {
 
   async function processJoinRequest(requestId: string, accept: boolean) {
     try {
-      await groupsApi.processJoinRequest(requestId, { accept })
+      await groupsApi.processJoinRequest(requestId, {accept})
     } catch (error) {
       console.error('Process join request failed:', error)
       throw error
@@ -308,14 +313,17 @@ export const useGroupsStore = defineStore('groups', () => {
 
   // 初始化 SignalR 事件监听
   function setupSignalRListeners() {
-    // 群组邀请通知
-    signalRService.on('GroupInvitationReceived', () => {
-      loadGroups()
-    })
-
     // 新成员加入群组
     signalRService.on('GroupMemberJoined', async (member: GroupMember) => {
       const normalizedMember = normalizeGroupMember(member)
+      const {useAuthStore} = await import('./auth')
+      const authStore = useAuthStore()
+      const isCurrentUser = normalizedMember.userId === authStore.user?.id
+
+      if (isCurrentUser) {
+        await loadGroups()
+      }
+
       const members = groupMembers.value.get(normalizedMember.groupId)
       if (members) {
         if (!members.find(m => m.userId === normalizedMember.userId)) {
@@ -328,12 +336,24 @@ export const useGroupsStore = defineStore('groups', () => {
         group.memberCount = members?.length ?? (group.memberCount || 0) + 1
       }
 
-      // 如果是当前用户加入群组,初始化已读位置
-      const { useAuthStore } = await import('./auth')
-      const authStore = useAuthStore()
-      if (normalizedMember.userId === authStore.user?.id) {
+      // 如果是当前用户加入群组,刷新群信息、初始化已读位置和会话列表
+      if (isCurrentUser) {
         console.log('[Groups] 当前用户通过 SignalR 加入群组:', normalizedMember.groupId)
+        try {
+          await loadGroupMembers(normalizedMember.groupId)
+        } catch (error) {
+          console.debug('[Groups] 加载新群组详情失败:', error)
+        }
+
         await initializeGroupReadPosition(normalizedMember.groupId)
+
+        try {
+          const {useChatStore} = await import('./chat')
+          const chatStore = useChatStore()
+          await chatStore.loadConversations()
+        } catch (error) {
+          console.debug('[Groups] 刷新会话列表失败:', error)
+        }
       }
     })
 

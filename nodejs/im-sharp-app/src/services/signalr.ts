@@ -216,14 +216,14 @@ class SignalRService {
       this.emit('MessageRead', messageId, readAt)
     })
 
+    // 会话内所有消息已读
+    this.connection.on('AllMessagesRead', (userId) => {
+      this.emit('AllMessagesRead', userId)
+    })
+
     // 好友请求通知
     this.connection.on('FriendRequestReceived', (senderId) => {
       this.emit('FriendRequestReceived', senderId)
-    })
-
-    // 好友请求被接受
-    this.connection.on('FriendRequestAccepted', (userId) => {
-      this.emit('FriendRequestAccepted', userId)
     })
 
     // 好友请求被处理
@@ -242,11 +242,6 @@ class SignalRService {
       this.emit('FriendDeleted', data)
     })
 
-    // 群组邀请通知
-    this.connection.on('GroupInvitationReceived', (groupId) => {
-      this.emit('GroupInvitationReceived', groupId)
-    })
-
     // 新成员加入群组
     this.connection.on('GroupMemberJoined', (member) => {
       this.emit('GroupMemberJoined', member)
@@ -262,10 +257,6 @@ class SignalRService {
       this.emit('GroupUpdated', groupId)
     })
 
-    // 系统通知
-    this.connection.on('SystemNotification', (message) => {
-      this.emit('SystemNotification', message)
-    })
   }
 
   // 注册事件处理器

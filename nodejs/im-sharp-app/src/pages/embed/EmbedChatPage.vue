@@ -5,6 +5,7 @@ import { useChatStore, useContactsStore, useAuthStore, useUiStore } from '@/stor
 import { useEmbedStore } from '@/stores/embed'
 import { MessageBubble, LoadingSpinner, ChatInputBar } from '@/components'
 import { containsScript } from '@/utils/contentValidator'
+import { debounce } from '@/utils/debounce'
 import { formatTime, formatDate } from '@/utils/time'
 import { signalRService } from '@/services'
 
@@ -32,6 +33,14 @@ const messages = computed(() => {
 })
 
 const isTyping = computed(() => chatStore.typingUsers.get(chatId) || false)
+
+const notifyTyping = debounce(async () => {
+  try {
+    await signalRService.sendTypingStatus(chatId)
+  } catch (error) {
+    console.debug('发送输入状态失败:', error)
+  }
+}, 300)
 
 async function handleReconnected() {
   try {
@@ -107,6 +116,11 @@ async function handleSendImage(url: string) {
   }
 }
 
+function handleInputChange(content: string) {
+  if (!content.trim()) return
+  notifyTyping()
+}
+
 function scrollToBottom() {
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
@@ -179,6 +193,12 @@ function shouldShowTimestamp(index: number): boolean {
       </div>
     </main>
 
-    <ChatInputBar ref="chatInputBarRef" :is-sending="isSending" @send-text="handleSendText" @send-image="handleSendImage" />
+    <ChatInputBar
+      ref="chatInputBarRef"
+      :is-sending="isSending"
+      @send-text="handleSendText"
+      @send-image="handleSendImage"
+      @input-change="handleInputChange"
+    />
   </div>
 </template>

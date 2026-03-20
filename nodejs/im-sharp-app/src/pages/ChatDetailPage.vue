@@ -48,6 +48,14 @@ const isTyping = computed(() => {
   return chatStore.typingUsers.get(chatId) || false
 })
 
+const notifyTyping = debounce(async () => {
+  try {
+    await signalRService.sendTypingStatus(chatId)
+  } catch (error) {
+    console.debug('发送输入状态失败:', error)
+  }
+}, 300)
+
 async function handleReconnected() {
   try {
     await chatStore.loadPrivateMessages(chatId)
@@ -151,6 +159,11 @@ async function handleSendImage(url: string) {
     console.error('发送图片失败:', error)
     uiStore.showToast('图片发送失败', 'error')
   }
+}
+
+function handleInputChange(content: string) {
+  if (!content.trim()) return
+  notifyTyping()
 }
 
 function scrollToBottom() {
@@ -402,7 +415,13 @@ function handleKeydown(e: KeyboardEvent) {
       </div>
     </main>
 
-    <ChatInputBar ref="chatInputBarRef" :is-sending="isSending" @send-text="handleSendText" @send-image="handleSendImage" />
+    <ChatInputBar
+      ref="chatInputBarRef"
+      :is-sending="isSending"
+      @send-text="handleSendText"
+      @send-image="handleSendImage"
+      @input-change="handleInputChange"
+    />
 
     <!-- 好友删除确认对话框 -->
     <ConfirmationModal

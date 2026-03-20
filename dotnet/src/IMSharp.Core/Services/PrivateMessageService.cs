@@ -116,9 +116,9 @@ public class PrivateMessageService(
         return new UnreadCountResponse(totalUnread, unreadByUser);
     }
 
-    public async Task MarkAsDeliveredAsync(Guid messageId, CancellationToken cancellationToken = default)
+    public async Task<DateTimeOffset?> MarkAsDeliveredAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
-        await messageRepository.MarkAsDeliveredAsync(messageId, cancellationToken);
+        return await messageRepository.MarkAsDeliveredAsync(messageId, cancellationToken);
     }
 
     public async Task MarkAsReadAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default)
@@ -134,7 +134,7 @@ public class PrivateMessageService(
         await messageRepository.MarkAsReadAsync(messageId, cancellationToken);
     }
 
-    public async Task<Guid> MarkAsReadAndGetSenderAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default)
+    public async Task<(Guid SenderId, DateTimeOffset ReadAt)> MarkAsReadAndGetSenderAsync(Guid userId, Guid messageId, CancellationToken cancellationToken = default)
     {
         var message = await messageRepository.GetByIdAsync(messageId, cancellationToken);
         if (message == null)
@@ -143,17 +143,17 @@ public class PrivateMessageService(
         if (message.ReceiverId != userId)
             throw new UnauthorizedException("Can only mark your own messages as read");
 
-        await messageRepository.MarkAsReadAsync(messageId, cancellationToken);
-        return message.SenderId;
+        var readAt = await messageRepository.MarkAsReadAsync(messageId, cancellationToken);
+        return (message.SenderId, readAt ?? message.ReadAt ?? DateTimeOffset.UtcNow);
     }
 
-    public async Task MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
+    public async Task<DateTimeOffset?> MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
     {
         // 验证是好友关系
         if (!await friendRepository.AreFriendsAsync(userId, friendId, cancellationToken))
             throw new BusinessException("只能标记好友消息为已读");
 
-        await messageRepository.MarkAllAsReadAsync(userId, friendId, cancellationToken);
+        return await messageRepository.MarkAllAsReadAsync(userId, friendId, cancellationToken);
     }
 
     public async Task DeleteConversationAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)

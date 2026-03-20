@@ -78,41 +78,66 @@ public class PrivateMessageRepository(ApplicationDbContext context) : IPrivateMe
             .CountAsync(cancellationToken);
     }
 
-    public async Task MarkAsDeliveredAsync(Guid messageId, CancellationToken cancellationToken = default)
+    public async Task<DateTimeOffset?> MarkAsDeliveredAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
         var message = await context.PrivateMessages.FindAsync([messageId], cancellationToken);
-        if (message != null && message.Status == MessageStatus.Sent)
+        if (message == null)
         {
+            return null;
+        }
+
+        if (message.Status == MessageStatus.Sent)
+        {
+            var deliveredAt = DateTimeOffset.UtcNow;
             message.Status = MessageStatus.Delivered;
-            message.DeliveredAt = DateTimeOffset.UtcNow;
+            message.DeliveredAt = deliveredAt;
             await context.SaveChangesAsync(cancellationToken);
+            return deliveredAt;
         }
+
+        return message.DeliveredAt;
     }
 
-    public async Task MarkAsReadAsync(Guid messageId, CancellationToken cancellationToken = default)
+    public async Task<DateTimeOffset?> MarkAsReadAsync(Guid messageId, CancellationToken cancellationToken = default)
     {
         var message = await context.PrivateMessages.FindAsync([messageId], cancellationToken);
-        if (message != null && message.Status != MessageStatus.Read)
+        if (message == null)
         {
-            message.Status = MessageStatus.Read;
-            message.ReadAt = DateTimeOffset.UtcNow;
-            await context.SaveChangesAsync(cancellationToken);
+            return null;
         }
+
+        if (message.Status != MessageStatus.Read)
+        {
+            var readAt = DateTimeOffset.UtcNow;
+            message.Status = MessageStatus.Read;
+            message.ReadAt = readAt;
+            await context.SaveChangesAsync(cancellationToken);
+            return readAt;
+        }
+
+        return message.ReadAt;
     }
 
-    public async Task MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
+    public async Task<DateTimeOffset?> MarkAllAsReadAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)
     {
         var messages = await context.PrivateMessages
             .Where(m => m.ReceiverId == userId && m.SenderId == friendId && m.Status != MessageStatus.Read)
             .ToListAsync(cancellationToken);
 
+        if (messages.Count == 0)
+        {
+            return null;
+        }
+
+        var readAt = DateTimeOffset.UtcNow;
         foreach (var message in messages)
         {
             message.Status = MessageStatus.Read;
-            message.ReadAt = DateTimeOffset.UtcNow;
+            message.ReadAt = readAt;
         }
 
         await context.SaveChangesAsync(cancellationToken);
+        return readAt;
     }
 
     public async Task DeleteConversationAsync(Guid userId, Guid friendId, CancellationToken cancellationToken = default)

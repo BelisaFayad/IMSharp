@@ -86,26 +86,29 @@ public class ChatHub(
     public async Task MarkAsRead(Guid messageId)
     {
         var userId = GetUserId();
-        var senderId = await messageService.MarkAsReadAndGetSenderAsync(userId, messageId);
+        var (senderId, readAt) = await messageService.MarkAsReadAndGetSenderAsync(userId, messageId);
 
         // 通知发送者消息已读
         var senderConnections = connectionManager.GetConnections(senderId);
         foreach (var connectionId in senderConnections)
         {
-            await Clients.Client(connectionId).SendAsync(SignalREvents.Message.Read, messageId);
+            await Clients.Client(connectionId).SendAsync(SignalREvents.Message.Read, messageId, readAt);
         }
     }
 
     public async Task MarkAllAsRead(Guid friendId)
     {
         var userId = GetUserId();
-        await messageService.MarkAllAsReadAsync(userId, friendId);
+        var readAt = await messageService.MarkAllAsReadAsync(userId, friendId);
 
         // 通知发送者所有消息已读
-        var senderConnections = connectionManager.GetConnections(friendId);
-        foreach (var connectionId in senderConnections)
+        if (readAt.HasValue)
         {
-            await Clients.Client(connectionId).SendAsync(SignalREvents.Message.AllRead, userId);
+            var senderConnections = connectionManager.GetConnections(friendId);
+            foreach (var connectionId in senderConnections)
+            {
+                await Clients.Client(connectionId).SendAsync(SignalREvents.Message.AllRead, userId);
+            }
         }
     }
 
@@ -117,7 +120,7 @@ public class ChatHub(
         var receiverConnections = connectionManager.GetConnections(receiverId);
         foreach (var connectionId in receiverConnections)
         {
-            await Clients.Client(connectionId).SendAsync(SignalREvents.UserStatus.Typing, senderId);
+            await Clients.Client(connectionId).SendAsync(SignalREvents.UserStatus.Typing, senderId, true);
         }
     }
 
@@ -179,12 +182,18 @@ public class ChatHub(
         foreach (var connectionId in receiverConnections)
             await Clients.Client(connectionId).SendAsync(SignalREvents.Message.Received, message);
 
-        // 如果接收者在线，自动标记为 Delivered
-        if (connectionManager.IsOnline(request.ReceiverId.Value))
-            await messageService.MarkAsDeliveredAsync(message.Id);
-
         // 回显给发送者
         await Clients.Caller.SendAsync(SignalREvents.Message.Sent, message);
+
+        // 如果接收者在线，自动标记为 Delivered
+        if (connectionManager.IsOnline(request.ReceiverId.Value))
+        {
+            var deliveredAt = await messageService.MarkAsDeliveredAsync(message.Id);
+            if (deliveredAt.HasValue)
+            {
+                await Clients.Caller.SendAsync(SignalREvents.Message.Delivered, message.Id, deliveredAt.Value);
+            }
+        }
     }
 
     private async Task SendGroupMessageInternal(Guid senderId, UnifiedSendMessageRequest request)

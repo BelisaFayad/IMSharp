@@ -15,6 +15,7 @@ const props = withDefaults(defineProps<Props>(), {
 const emit = defineEmits<{
   sendText: [content: string]
   sendImage: [url: string]
+  inputChange: [content: string]
 }>()
 
 const uiStore = useUiStore()
@@ -32,6 +33,7 @@ function handleSendMessage() {
 // 清空输入框（供父组件调用）
 function clearInput() {
   messageInput.value = ''
+  emit('inputChange', '')
 }
 
 // 暴露方法给父组件
@@ -41,6 +43,7 @@ defineExpose({
 
 function handleEmojiSelect(emoji: string) {
   messageInput.value += emoji
+  emit('inputChange', messageInput.value)
 }
 
 function handleImageUpload() {
@@ -90,6 +93,10 @@ async function handlePaste(e: ClipboardEvent) {
     }
   }
 }
+
+function handleInputChange() {
+  emit('inputChange', messageInput.value)
+}
 </script>
 
 <template>
@@ -114,6 +121,7 @@ async function handlePaste(e: ClipboardEvent) {
       <div class="flex-1 relative">
         <input
           v-model="messageInput"
+          @input="handleInputChange"
           @focus="showEmojiPicker = false"
           @keyup.enter="handleSendMessage"
           @paste="handlePaste"
